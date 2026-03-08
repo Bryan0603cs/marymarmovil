@@ -80,10 +80,10 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     topBar = {
-                        TopAppBar(
-                            title = { Text(if (isLoggedIn) "Mar y Mar" else "Mar y Mar móvil") },
-                            actions = {
-                                if (isLoggedIn) {
+                        if (isLoggedIn) {
+                            TopAppBar(
+                                title = { Text("Mar y Mar") },
+                                actions = {
                                     TextButton(onClick = {
                                         sessionVm.logout()
                                         nav.navigate(Routes.Login) {
@@ -94,8 +94,8 @@ class MainActivity : ComponentActivity() {
                                         Text("Salir")
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     },
                     bottomBar = {
                         if (isLoggedIn) {

@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,11 +49,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.marymar.mobile.R
 import com.marymar.mobile.presentation.viewmodel.AuthNext
@@ -81,6 +85,7 @@ fun LoginScreen(
 ) {
     val state by vm.ui.collectAsState()
     val context = LocalContext.current
+    val currentDensity = LocalDensity.current
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -95,7 +100,7 @@ fun LoginScreen(
     var captchaReloadNonce by rememberSaveable { mutableStateOf(0) }
     var previousCaptchaVerified by rememberSaveable { mutableStateOf(false) }
     var captchaLocalError by rememberSaveable { mutableStateOf<String?>(null) }
-
+    var captchaHeight by rememberSaveable { mutableStateOf(96) }
     val scrollState = rememberScrollState()
 
     val bgColor = if (highContrast) Color(0xFF0A2E3B) else PrimaryBlue
@@ -129,266 +134,283 @@ fun LoginScreen(
         }
     }
 
-    if (showSupportSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSupportSheet = false },
-            sheetState = supportSheetState,
-            containerColor = SurfaceWhite
-        ) {
-            SupportChannelSheet(
-                onWhatsApp = {
-                    val uri = Uri.parse("https://wa.me/$SUPPORT_WHATSAPP")
-                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                },
-                onCall = {
-                    val uri = Uri.parse("tel:$SUPPORT_PHONE")
-                    context.startActivity(Intent(Intent.ACTION_DIAL, uri))
-                },
-                onEmail = {
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:$SUPPORT_EMAIL")
-                        putExtra(Intent.EXTRA_SUBJECT, "Soporte Mar y Mar")
-                    }
-                    context.startActivity(intent)
-                }
-            )
-        }
-    }
-
-    if (showAccessibilitySheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showAccessibilitySheet = false },
-            sheetState = accessibilitySheetState,
-            containerColor = SurfaceWhite
-        ) {
-            AccessibilitySheet(
-                fontScale = fontScale,
-                highContrast = highContrast,
-                onIncrease = { fontScale = (fontScale + 0.1f).coerceAtMost(1.35f) },
-                onDecrease = { fontScale = (fontScale - 0.1f).coerceAtLeast(0.90f) },
-                onToggleHighContrast = { highContrast = !highContrast },
-                onReset = {
-                    fontScale = 1f
-                    highContrast = false
-                }
-            )
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bgColor)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+    CompositionLocalProvider(
+        LocalDensity provides Density(currentDensity.density, currentDensity.fontScale * fontScale)
     ) {
-        Column(
+        if (showSupportSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showSupportSheet = false },
+                sheetState = supportSheetState,
+                containerColor = SurfaceWhite
+            ) {
+                SupportChannelSheet(
+                    onWhatsApp = {
+                        val uri = Uri.parse("https://wa.me/$SUPPORT_WHATSAPP")
+                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    },
+                    onCall = {
+                        val uri = Uri.parse("tel:$SUPPORT_PHONE")
+                        context.startActivity(Intent(Intent.ACTION_DIAL, uri))
+                    },
+                    onEmail = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:$SUPPORT_EMAIL")
+                            putExtra(Intent.EXTRA_SUBJECT, "Soporte Mar y Mar")
+                        }
+                        context.startActivity(intent)
+                    }
+                )
+            }
+        }
+
+        if (showAccessibilitySheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showAccessibilitySheet = false },
+                sheetState = accessibilitySheetState,
+                containerColor = SurfaceWhite
+            ) {
+                AccessibilitySheet(
+                    fontScale = fontScale,
+                    highContrast = highContrast,
+                    onIncrease = { fontScale = (fontScale + 0.1f).coerceAtMost(1.35f) },
+                    onDecrease = { fontScale = (fontScale - 0.1f).coerceAtLeast(0.90f) },
+                    onToggleHighContrast = { highContrast = !highContrast },
+                    onReset = {
+                        fontScale = 1f
+                        highContrast = false
+                    }
+                )
+            }
+        }
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .background(bgColor)
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 10.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 22.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 10.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.logo_mar_y_mar),
-                        contentDescription = "Logo Mar y Mar",
-                        modifier = Modifier
-                            .size(84.dp)
-                            .align(Alignment.CenterHorizontally)
-                    )
-
-                    Text(
-                        text = "Bienvenido a Mar y Mar",
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = primaryText
-                    )
-
-                    Text(
-                        text = "Inicia sesión para continuar",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = secondaryText
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { value ->
-                            email = value
-                            captchaLocalError = null
-                            vm.clearBanners()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        placeholder = {
-                            Text("Correo electrónico", color = MutedText)
-                        }
-                    )
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { value ->
-                            password = value
-                            captchaLocalError = null
-                            vm.clearBanners()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
-                        visualTransformation = if (showPassword) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        placeholder = {
-                            Text("Contraseña", color = MutedText)
-                        },
-                        trailingIcon = {
-                            TextButton(onClick = { showPassword = !showPassword }) {
-                                Text(
-                                    text = if (showPassword) "Ocultar" else "Mostrar",
-                                    color = secondaryText
-                                )
-                            }
-                        }
-                    )
-
-                    Surface(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(
-                                1.dp,
-                                if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
-                                RoundedCornerShape(8.dp)
-                            ),
-                        shape = RoundedCornerShape(8.dp),
-                        color = SurfaceWhite
+                            .padding(horizontal = 22.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_mar_y_mar),
+                            contentDescription = "Logo Mar y Mar",
+                            modifier = Modifier
+                                .size(84.dp)
+                                .align(Alignment.CenterHorizontally)
+                        )
+
+                        Text(
+                            text = "Bienvenido a Mar y Mar",
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = primaryText,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "Inicia sesión para continuar",
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = secondaryText,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { value ->
+                                email = value
+                                captchaLocalError = null
+                                vm.clearBanners()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            placeholder = {
+                                Text("Correo electrónico", color = MutedText)
+                            }
+                        )
+
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { value ->
+                                password = value
+                                captchaLocalError = null
+                                vm.clearBanners()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            visualTransformation = if (showPassword) {
+                                VisualTransformation.None
+                            } else {
+                                PasswordVisualTransformation()
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            placeholder = {
+                                Text("Contraseña", color = MutedText)
+                            },
+                            trailingIcon = {
+                                TextButton(onClick = { showPassword = !showPassword }) {
+                                    Text(
+                                        text = if (showPassword) "Ocultar" else "Mostrar",
+                                        color = secondaryText
+                                    )
+                                }
+                            }
+                        )
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    1.dp,
+                                    if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
+                                    RoundedCornerShape(8.dp)
+                                ),
+                            shape = RoundedCornerShape(8.dp),
+                            color = SurfaceWhite
                         ) {
-                            if (captchaError || captchaLocalError != null) {
-                                Text(
-                                    text = captchaLocalError
-                                        ?: "La verificación ha caducado. Vuelve a marcar la casilla de verificación.",
-                                    color = Color(0xFFD93025),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(bottom = 8.dp)
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                if (captchaError || captchaLocalError != null) {
+                                    Text(
+                                        text = captchaLocalError
+                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla de verificación.",
+                                        color = Color(0xFFD93025),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                }
+
+                                RecaptchaWidget(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(captchaHeight.dp),
+                                    reloadNonce = captchaReloadNonce,
+                                    onTokenReceived = { token ->
+                                        captchaLocalError = null
+                                        captchaHeight = 96
+                                        vm.setCaptchaToken(token)
+                                    },
+                                    onExpired = {
+                                        captchaLocalError = "La verificación ha caducado. Vuelve a marcar la casilla."
+                                        captchaHeight = 96
+                                        vm.clearCaptcha()
+                                    },
+                                    onError = { message ->
+                                        captchaLocalError = message
+                                        captchaHeight = 96
+                                        vm.clearCaptcha()
+                                    },
+                                    onHeightChanged = { newHeight ->
+                                        captchaHeight = when {
+                                            newHeight > 180 -> newHeight.coerceIn(520, 700)
+                                            else -> newHeight.coerceIn(96, 120)
+                                        }
+                                    }
                                 )
                             }
+                        }
 
-                            RecaptchaWidget(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(86.dp),
-                                reloadNonce = captchaReloadNonce,
-                                onTokenReceived = { token ->
-                                    captchaLocalError = null
-                                    vm.setCaptchaToken(token)
-                                },
-                                onExpired = {
-                                    captchaLocalError = "La verificación ha caducado. Vuelve a marcar la casilla."
-                                    vm.clearCaptcha()
-                                },
-                                onError = { message ->
-                                    captchaLocalError = message
-                                    vm.clearCaptcha()
+                        PrimaryActionButton(
+                            text = "Ingresar",
+                            loading = state.loading,
+                            enabled = email.isNotBlank() && password.isNotBlank() && state.captchaVerified,
+                            onClick = {
+                                if (!state.captchaVerified) {
+                                    captchaLocalError = "Completa el captcha"
+                                } else {
+                                    vm.login(email.trim(), password)
                                 }
+                            }
+                        )
+
+                        if (!captchaError) {
+                            nonCaptchaError?.let { errorText ->
+                                if (errorText.isNotBlank()) {
+                                    ErrorBanner(errorText)
+                                }
+                            }
+                        }
+
+                        state.info?.let { infoText ->
+                            if (infoText.isNotBlank()) {
+                                InfoBanner(infoText)
+                            }
+                        }
+
+                        GoogleLikeButton(
+                            onClick = { vm.onGoogleLoginRequested() }
+                        )
+
+                        TextButton(
+                            onClick = { vm.forgotPassword(email.trim()) },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Text(
+                                text = if (state.loadingForgot) "Enviando..." else "¿Olvidaste tu contraseña?",
+                                color = primaryText
                             )
                         }
-                    }
 
-                    PrimaryActionButton(
-                        text = "Ingresar",
-                        loading = state.loading,
-                        enabled = email.isNotBlank() && password.isNotBlank() && state.captchaVerified,
-                        onClick = {
-                            if (!state.captchaVerified) {
-                                captchaLocalError = "Completa el captcha"
-                            } else {
-                                vm.login(email.trim(), password)
-                            }
-                        }
-                    )
-
-                    if (!captchaError) {
-                        nonCaptchaError?.let { errorText ->
-                            if (errorText.isNotBlank()) {
-                                ErrorBanner(errorText)
-                            }
-                        }
-                    }
-
-                    state.info?.let { infoText ->
-                        if (infoText.isNotBlank()) {
-                            InfoBanner(infoText)
-                        }
-                    }
-
-                    GoogleLikeButton(
-                        onClick = { vm.onGoogleLoginRequested() }
-                    )
-
-                    TextButton(
-                        onClick = { vm.forgotPassword(email.trim()) },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            text = if (state.loadingForgot) "Enviando..." else "¿Olvidaste tu contraseña?",
-                            color = primaryText
+                        SecondaryActionButton(
+                            text = "¿No tienes cuenta? Regístrate",
+                            onClick = onRegister
                         )
                     }
-
-                    SecondaryActionButton(
-                        text = "¿No tienes cuenta? Regístrate",
-                        onClick = onRegister
-                    )
                 }
+
+                Spacer(modifier = Modifier.height(88.dp))
             }
 
-            Spacer(modifier = Modifier.height(88.dp))
-        }
+            FloatingActionButton(
+                onClick = { showAccessibilitySheet = true },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(18.dp),
+                containerColor = SecondaryBlue,
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
+            ) {
+                Text("♿", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
+            }
 
-        FloatingActionButton(
-            onClick = { showAccessibilitySheet = true },
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 16.dp),
-            containerColor = SecondaryBlue,
-            shape = CircleShape,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-        ) {
-            Text("♿", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
-        }
-
-        FloatingActionButton(
-            onClick = { showSupportSheet = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(18.dp),
-            containerColor = Color(0xFF2ECC71),
-            shape = CircleShape,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-        ) {
-            Text("💬", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
+            FloatingActionButton(
+                onClick = { showSupportSheet = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(18.dp),
+                containerColor = Color(0xFF2ECC71),
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
+            ) {
+                Text("💬", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }
@@ -448,7 +470,13 @@ private fun AccessibilitySheet(
             .padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Accesibilidad", style = MaterialTheme.typography.headlineSmall, color = PrimaryBlue)
+        Text(
+            text = "Accesibilidad",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.headlineSmall,
+            color = PrimaryBlue,
+            textAlign = TextAlign.Center
+        )
 
         OutlinedButton(onClick = onIncrease, modifier = Modifier.fillMaxWidth()) {
             Text("Aumentar texto")
@@ -496,7 +524,13 @@ private fun SupportChannelSheet(
             .padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Canales de comunicación", style = MaterialTheme.typography.headlineSmall, color = PrimaryBlue)
+        Text(
+            text = "Canales de comunicación",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.headlineSmall,
+            color = PrimaryBlue,
+            textAlign = TextAlign.Center
+        )
 
         OutlinedButton(onClick = onWhatsApp, modifier = Modifier.fillMaxWidth()) {
             Text("WhatsApp")
