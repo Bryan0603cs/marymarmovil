@@ -2,6 +2,7 @@ package com.marymar.mobile.presentation.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -43,8 +45,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,11 +67,11 @@ import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
 import com.marymar.mobile.ui.components.PrimaryActionButton
 import com.marymar.mobile.ui.components.RecaptchaWidget
-import com.marymar.mobile.ui.components.SecondaryActionButton
 import com.marymar.mobile.ui.theme.BorderGray
 import com.marymar.mobile.ui.theme.MutedText
 import com.marymar.mobile.ui.theme.PrimaryBlue
 import com.marymar.mobile.ui.theme.SecondaryBlue
+import com.marymar.mobile.ui.theme.SoftBeige
 import com.marymar.mobile.ui.theme.SurfaceWhite
 
 private const val SUPPORT_PHONE = "573003710163"
@@ -101,15 +103,21 @@ fun LoginScreen(
     var previousCaptchaVerified by rememberSaveable { mutableStateOf(false) }
     var captchaLocalError by rememberSaveable { mutableStateOf<String?>(null) }
     var captchaHeight by rememberSaveable { mutableStateOf(96) }
+
+    val animatedCaptchaHeight by animateDpAsState(
+        targetValue = captchaHeight.dp,
+        label = "loginCaptchaHeight"
+    )
+
     val scrollState = rememberScrollState()
-
-    val bgColor = if (highContrast) Color(0xFF0A2E3B) else PrimaryBlue
-    val cardColor = if (highContrast) Color(0xFFF7F7F7) else Color(0xFFF3F3F3)
-    val primaryText = if (highContrast) Color(0xFF102129) else PrimaryBlue
-    val secondaryText = if (highContrast) Color(0xFF222222) else MutedText
-
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val accessibilitySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val bgColor = if (highContrast) Color(0xFF14181C) else SoftBeige
+    val cardColor = if (highContrast) Color(0xFFF6F6F6) else SurfaceWhite
+    val headerColor = if (highContrast) Color(0xFF1D242B) else SurfaceWhite
+    val primaryText = if (highContrast) Color(0xFF0E3445) else PrimaryBlue
+    val secondaryText = if (highContrast) Color(0xFF313131) else MutedText
 
     val captchaError = state.error?.contains("captcha", ignoreCase = true) == true
     val nonCaptchaError = state.error?.takeIf { !it.contains("captcha", ignoreCase = true) }
@@ -127,15 +135,17 @@ fun LoginScreen(
                 vm.consumeNext()
                 onGoToCode(next.email)
             }
-            AuthNext.LoggedIn -> {
-                vm.consumeNext()
-            }
+
+            AuthNext.LoggedIn -> vm.consumeNext()
             null -> Unit
         }
     }
 
     CompositionLocalProvider(
-        LocalDensity provides Density(currentDensity.density, currentDensity.fontScale * fontScale)
+        LocalDensity provides Density(
+            density = currentDensity.density,
+            fontScale = currentDensity.fontScale * fontScale
+        )
     ) {
         if (showSupportSheet) {
             ModalBottomSheet(
@@ -143,7 +153,7 @@ fun LoginScreen(
                 sheetState = supportSheetState,
                 containerColor = SurfaceWhite
             ) {
-                SupportChannelSheet(
+                LoginSupportSheet(
                     onWhatsApp = {
                         val uri = Uri.parse("https://wa.me/$SUPPORT_WHATSAPP")
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -169,7 +179,7 @@ fun LoginScreen(
                 sheetState = accessibilitySheetState,
                 containerColor = SurfaceWhite
             ) {
-                AccessibilitySheet(
+                LoginAccessibilitySheet(
                     fontScale = fontScale,
                     highContrast = highContrast,
                     onIncrease = { fontScale = (fontScale + 0.1f).coerceAtMost(1.35f) },
@@ -194,85 +204,104 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                ElevatedCard(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 10.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    color = headerColor,
+                    tonalElevation = 1.dp,
+                    shadowElevation = 3.dp
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 22.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.logo_mar_y_mar),
                             contentDescription = "Logo Mar y Mar",
-                            modifier = Modifier
-                                .size(84.dp)
-                                .align(Alignment.CenterHorizontally)
+                            modifier = Modifier.size(44.dp)
                         )
 
+                        Spacer(modifier = Modifier.size(12.dp))
+
+                        Column {
+                            Text(
+                                text = "Mar y Mar",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = primaryText,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Inicia sesión para continuar",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = secondaryText
+                            )
+                        }
+                    }
+                }
+
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         Text(
                             text = "Bienvenido a Mar y Mar",
                             modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
+                            style = MaterialTheme.typography.headlineSmall,
                             color = primaryText,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold
                         )
 
                         Text(
-                            text = "Inicia sesión para continuar",
+                            text = "Ingresa con tu correo y contraseña",
                             modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = secondaryText,
                             textAlign = TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
                         OutlinedTextField(
                             value = email,
-                            onValueChange = { value ->
-                                email = value
+                            onValueChange = {
+                                email = it
                                 captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            placeholder = {
-                                Text("Correo electrónico", color = MutedText)
-                            }
+                            placeholder = { Text("Correo electrónico", color = MutedText) }
                         )
 
                         OutlinedTextField(
                             value = password,
-                            onValueChange = { value ->
-                                password = value
+                            onValueChange = {
+                                password = it
                                 captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             visualTransformation = if (showPassword) {
                                 VisualTransformation.None
                             } else {
                                 PasswordVisualTransformation()
                             },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            placeholder = {
-                                Text("Contraseña", color = MutedText)
-                            },
+                            placeholder = { Text("Contraseña", color = MutedText) },
                             trailingIcon = {
                                 TextButton(onClick = { showPassword = !showPassword }) {
                                     Text(
@@ -287,20 +316,20 @@ fun LoginScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(
-                                    1.dp,
-                                    if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
-                                    RoundedCornerShape(8.dp)
+                                    width = 1.dp,
+                                    color = if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
+                                    shape = RoundedCornerShape(10.dp)
                                 ),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = SurfaceWhite
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                             ) {
                                 if (captchaError || captchaLocalError != null) {
                                     Text(
                                         text = captchaLocalError
-                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla de verificación.",
+                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla.",
                                         color = Color(0xFFD93025),
                                         style = MaterialTheme.typography.bodySmall,
                                         modifier = Modifier.padding(bottom = 8.dp)
@@ -310,7 +339,7 @@ fun LoginScreen(
                                 RecaptchaWidget(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(captchaHeight.dp),
+                                        .height(animatedCaptchaHeight),
                                     reloadNonce = captchaReloadNonce,
                                     onTokenReceived = { token ->
                                         captchaLocalError = null
@@ -318,7 +347,8 @@ fun LoginScreen(
                                         vm.setCaptchaToken(token)
                                     },
                                     onExpired = {
-                                        captchaLocalError = "La verificación ha caducado. Vuelve a marcar la casilla."
+                                        captchaLocalError =
+                                            "La verificación ha caducado. Vuelve a marcar la casilla."
                                         captchaHeight = 96
                                         vm.clearCaptcha()
                                     },
@@ -328,10 +358,7 @@ fun LoginScreen(
                                         vm.clearCaptcha()
                                     },
                                     onHeightChanged = { newHeight ->
-                                        captchaHeight = when {
-                                            newHeight > 180 -> newHeight.coerceIn(520, 700)
-                                            else -> newHeight.coerceIn(96, 120)
-                                        }
+                                        captchaHeight = newHeight.coerceIn(96, 700)
                                     }
                                 )
                             }
@@ -340,7 +367,9 @@ fun LoginScreen(
                         PrimaryActionButton(
                             text = "Ingresar",
                             loading = state.loading,
-                            enabled = email.isNotBlank() && password.isNotBlank() && state.captchaVerified,
+                            enabled = email.isNotBlank() &&
+                                    password.isNotBlank() &&
+                                    state.captchaVerified,
                             onClick = {
                                 if (!state.captchaVerified) {
                                     captchaLocalError = "Completa el captcha"
@@ -351,20 +380,16 @@ fun LoginScreen(
                         )
 
                         if (!captchaError) {
-                            nonCaptchaError?.let { errorText ->
-                                if (errorText.isNotBlank()) {
-                                    ErrorBanner(errorText)
-                                }
+                            nonCaptchaError?.takeIf { it.isNotBlank() }?.let { errorText ->
+                                ErrorBanner(errorText)
                             }
                         }
 
-                        state.info?.let { infoText ->
-                            if (infoText.isNotBlank()) {
-                                InfoBanner(infoText)
-                            }
+                        state.info?.takeIf { it.isNotBlank() }?.let { infoText ->
+                            InfoBanner(infoText)
                         }
 
-                        GoogleLikeButton(
+                        LoginGoogleButton(
                             onClick = { vm.onGoogleLoginRequested() }
                         )
 
@@ -373,19 +398,20 @@ fun LoginScreen(
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         ) {
                             Text(
-                                text = if (state.loadingForgot) "Enviando..." else "¿Olvidaste tu contraseña?",
+                                text = if (state.loadingForgot) {
+                                    "Enviando..."
+                                } else {
+                                    "¿Olvidaste tu contraseña?"
+                                },
                                 color = primaryText
                             )
                         }
 
-                        SecondaryActionButton(
-                            text = "¿No tienes cuenta? Regístrate",
-                            onClick = onRegister
-                        )
+                        RegisterCtaButton(onClick = onRegister)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(88.dp))
+                Spacer(modifier = Modifier.height(90.dp))
             }
 
             FloatingActionButton(
@@ -416,13 +442,13 @@ fun LoginScreen(
 }
 
 @Composable
-private fun GoogleLikeButton(
+private fun LoginGoogleButton(
     onClick: () -> Unit
 ) {
     OutlinedButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = SurfaceWhite,
             contentColor = Color(0xFF1F2937)
@@ -432,17 +458,18 @@ private fun GoogleLikeButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .background(Color.White, CircleShape),
-                contentAlignment = Alignment.Center
+            Surface(
+                modifier = Modifier.size(24.dp),
+                shape = CircleShape,
+                color = Color.White
             ) {
-                Text(
-                    text = "G",
-                    color = Color(0xFF4285F4),
-                    fontWeight = FontWeight.Bold
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "G",
+                        color = Color(0xFF4285F4),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.size(12.dp))
@@ -456,7 +483,28 @@ private fun GoogleLikeButton(
 }
 
 @Composable
-private fun AccessibilitySheet(
+private fun RegisterCtaButton(
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = SecondaryBlue,
+            contentColor = SurfaceWhite
+        )
+    ) {
+        Text(
+            text = "¿No tienes cuenta? Regístrate",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun LoginAccessibilitySheet(
     fontScale: Float,
     highContrast: Boolean,
     onIncrease: () -> Unit,
@@ -503,17 +551,14 @@ private fun AccessibilitySheet(
             color = MutedText
         )
 
-        SecondaryActionButton(
-            text = "Restablecer",
-            onClick = onReset
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+            Text("Restablecer")
+        }
     }
 }
 
 @Composable
-private fun SupportChannelSheet(
+private fun LoginSupportSheet(
     onWhatsApp: () -> Unit,
     onCall: () -> Unit,
     onEmail: () -> Unit
@@ -543,7 +588,5 @@ private fun SupportChannelSheet(
         OutlinedButton(onClick = onEmail, modifier = Modifier.fillMaxWidth()) {
             Text("Correo")
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }

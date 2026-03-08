@@ -3,6 +3,7 @@ package com.marymar.mobile.presentation.screens
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,8 +46,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,17 +71,17 @@ import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
 import com.marymar.mobile.ui.components.PrimaryActionButton
 import com.marymar.mobile.ui.components.RecaptchaWidget
-import com.marymar.mobile.ui.components.SecondaryActionButton
 import com.marymar.mobile.ui.theme.BorderGray
 import com.marymar.mobile.ui.theme.MutedText
 import com.marymar.mobile.ui.theme.PrimaryBlue
 import com.marymar.mobile.ui.theme.SecondaryBlue
+import com.marymar.mobile.ui.theme.SoftBeige
 import com.marymar.mobile.ui.theme.SurfaceWhite
 import java.util.Calendar
 
-private const val SUPPORT_PHONE = "573003710163"
-private const val SUPPORT_EMAIL = "soporte@marymar.com"
-private const val SUPPORT_WHATSAPP = "573003710163"
+private const val REGISTER_SUPPORT_PHONE = "573003710163"
+private const val REGISTER_SUPPORT_EMAIL = "soporte@marymar.com"
+private const val REGISTER_SUPPORT_WHATSAPP = "573003710163"
 private const val PRIVACY_POLICY_URL = "https://d3hmyhthxmr5gy.cloudfront.net/politica"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,14 +117,20 @@ fun RegisterScreen(
     var captchaLocalError by rememberSaveable { mutableStateOf<String?>(null) }
     var captchaHeight by rememberSaveable { mutableStateOf(96) }
 
+    val animatedCaptchaHeight by animateDpAsState(
+        targetValue = captchaHeight.dp,
+        label = "registerCaptchaHeight"
+    )
+
     val scrollState = rememberScrollState()
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val accessibilitySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val bgColor = if (highContrast) Color(0xFF0A2E3B) else PrimaryBlue
-    val cardColor = if (highContrast) Color(0xFFF7F7F7) else Color(0xFFF3F3F3)
-    val primaryText = if (highContrast) Color(0xFF102129) else PrimaryBlue
-    val secondaryText = if (highContrast) Color(0xFF222222) else MutedText
+    val bgColor = if (highContrast) Color(0xFF14181C) else SoftBeige
+    val cardColor = if (highContrast) Color(0xFFF6F6F6) else SurfaceWhite
+    val headerColor = if (highContrast) Color(0xFF1D242B) else SurfaceWhite
+    val primaryText = if (highContrast) Color(0xFF0E3445) else PrimaryBlue
+    val secondaryText = if (highContrast) Color(0xFF313131) else MutedText
 
     val captchaError = state.error?.contains("captcha", ignoreCase = true) == true
     val habeasError = state.error?.contains("habeas", ignoreCase = true) == true ||
@@ -156,7 +163,10 @@ fun RegisterScreen(
     )
 
     CompositionLocalProvider(
-        LocalDensity provides Density(currentDensity.density, currentDensity.fontScale * fontScale)
+        LocalDensity provides Density(
+            density = currentDensity.density,
+            fontScale = currentDensity.fontScale * fontScale
+        )
     ) {
         if (showSupportSheet) {
             ModalBottomSheet(
@@ -164,18 +174,18 @@ fun RegisterScreen(
                 sheetState = supportSheetState,
                 containerColor = SurfaceWhite
             ) {
-                RegisterSupportChannelSheet(
+                RegisterSupportSheet(
                     onWhatsApp = {
-                        val uri = Uri.parse("https://wa.me/$SUPPORT_WHATSAPP")
+                        val uri = Uri.parse("https://wa.me/$REGISTER_SUPPORT_WHATSAPP")
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                     },
                     onCall = {
-                        val uri = Uri.parse("tel:$SUPPORT_PHONE")
+                        val uri = Uri.parse("tel:$REGISTER_SUPPORT_PHONE")
                         context.startActivity(Intent(Intent.ACTION_DIAL, uri))
                     },
                     onEmail = {
                         val intent = Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:$SUPPORT_EMAIL")
+                            data = Uri.parse("mailto:$REGISTER_SUPPORT_EMAIL")
                             putExtra(Intent.EXTRA_SUBJECT, "Soporte Mar y Mar")
                         }
                         context.startActivity(intent)
@@ -215,49 +225,72 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .padding(horizontal = 18.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                ElevatedCard(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 10.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    color = headerColor,
+                    tonalElevation = 1.dp,
+                    shadowElevation = 3.dp
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 22.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.logo_mar_y_mar),
                             contentDescription = "Logo Mar y Mar",
-                            modifier = Modifier
-                                .size(84.dp)
-                                .align(Alignment.CenterHorizontally)
+                            modifier = Modifier.size(44.dp)
                         )
 
+                        Spacer(modifier = Modifier.size(12.dp))
+
+                        Column {
+                            Text(
+                                text = "Mar y Mar",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = primaryText,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Crea tu cuenta",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = secondaryText
+                            )
+                        }
+                    }
+                }
+
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         Text(
                             text = "Crear cuenta",
                             modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
+                            style = MaterialTheme.typography.headlineSmall,
                             color = primaryText,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold
                         )
 
                         Text(
-                            text = "Regístrate para disfrutar de nuestros platos",
+                            text = "Completa los datos para registrarte",
                             modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = secondaryText,
                             textAlign = TextAlign.Center
                         )
-
-                        Spacer(modifier = Modifier.height(4.dp))
 
                         OutlinedTextField(
                             value = idNumber,
@@ -269,7 +302,7 @@ fun RegisterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             placeholder = { Text("Identificación", color = MutedText) }
                         )
 
@@ -282,7 +315,7 @@ fun RegisterScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             placeholder = { Text("Nombre completo", color = MutedText) }
                         )
 
@@ -296,7 +329,7 @@ fun RegisterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             placeholder = { Text("Correo electrónico", color = MutedText) }
                         )
 
@@ -309,9 +342,13 @@ fun RegisterScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            shape = RoundedCornerShape(16.dp),
+                            visualTransformation = if (showPassword) {
+                                VisualTransformation.None
+                            } else {
+                                PasswordVisualTransformation()
+                            },
                             placeholder = { Text("Contraseña", color = MutedText) },
                             trailingIcon = {
                                 TextButton(onClick = { showPassword = !showPassword }) {
@@ -331,8 +368,8 @@ fun RegisterScreen(
                                 .fillMaxWidth()
                                 .clickable { datePickerDialog.show() },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            placeholder = { Text("dd/mm/aaaa", color = MutedText) },
+                            shape = RoundedCornerShape(16.dp),
+                            placeholder = { Text("Fecha de nacimiento", color = MutedText) },
                             trailingIcon = {
                                 TextButton(onClick = { datePickerDialog.show() }) {
                                     Text("📅")
@@ -350,7 +387,7 @@ fun RegisterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             placeholder = { Text("Teléfono", color = MutedText) }
                         )
 
@@ -378,20 +415,20 @@ fun RegisterScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .border(
-                                    1.dp,
-                                    if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
-                                    RoundedCornerShape(8.dp)
+                                    width = 1.dp,
+                                    color = if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
+                                    shape = RoundedCornerShape(10.dp)
                                 ),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = SurfaceWhite
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                             ) {
                                 if (captchaError || captchaLocalError != null) {
                                     Text(
                                         text = captchaLocalError
-                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla de verificación.",
+                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla.",
                                         color = Color(0xFFD93025),
                                         style = MaterialTheme.typography.bodySmall,
                                         modifier = Modifier.padding(bottom = 8.dp)
@@ -401,7 +438,7 @@ fun RegisterScreen(
                                 RecaptchaWidget(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(captchaHeight.dp),
+                                        .height(animatedCaptchaHeight),
                                     reloadNonce = captchaReloadNonce,
                                     onTokenReceived = { token ->
                                         captchaLocalError = null
@@ -409,7 +446,8 @@ fun RegisterScreen(
                                         vm.setCaptchaToken(token)
                                     },
                                     onExpired = {
-                                        captchaLocalError = "La verificación ha caducado. Vuelve a marcar la casilla."
+                                        captchaLocalError =
+                                            "La verificación ha caducado. Vuelve a marcar la casilla."
                                         captchaHeight = 96
                                         vm.clearCaptcha()
                                     },
@@ -419,10 +457,7 @@ fun RegisterScreen(
                                         vm.clearCaptcha()
                                     },
                                     onHeightChanged = { newHeight ->
-                                        captchaHeight = when {
-                                            newHeight > 180 -> newHeight.coerceIn(520, 700)
-                                            else -> newHeight.coerceIn(96, 120)
-                                        }
+                                        captchaHeight = newHeight.coerceIn(96, 700)
                                     }
                                 )
                             }
@@ -458,27 +493,26 @@ fun RegisterScreen(
                         )
 
                         if (!captchaError && !habeasError) {
-                            nonSpecialError?.let { errorText ->
-                                if (errorText.isNotBlank()) {
-                                    ErrorBanner(errorText)
-                                }
+                            nonSpecialError?.takeIf { it.isNotBlank() }?.let { errorText ->
+                                ErrorBanner(errorText)
                             }
                         }
 
-                        state.info?.let { infoText ->
-                            if (infoText.isNotBlank()) {
-                                InfoBanner(infoText)
-                            }
+                        state.info?.takeIf { it.isNotBlank() }?.let { infoText ->
+                            InfoBanner(infoText)
                         }
 
-                        SecondaryActionButton(
-                            text = "¿Ya tienes cuenta? Inicia sesión",
-                            onClick = onBack
-                        )
+                        OutlinedButton(
+                            onClick = onBack,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Text("¿Ya tienes cuenta? Inicia sesión")
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(88.dp))
+                Spacer(modifier = Modifier.height(90.dp))
             }
 
             FloatingActionButton(
@@ -530,7 +564,7 @@ private fun PolicyRow(
                 append("Política de Tratamiento de Datos")
                 pop()
             },
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.clickable { onPolicyClick() }
         )
     }
@@ -584,17 +618,14 @@ private fun RegisterAccessibilitySheet(
             color = MutedText
         )
 
-        SecondaryActionButton(
-            text = "Restablecer",
-            onClick = onReset
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+            Text("Restablecer")
+        }
     }
 }
 
 @Composable
-private fun RegisterSupportChannelSheet(
+private fun RegisterSupportSheet(
     onWhatsApp: () -> Unit,
     onCall: () -> Unit,
     onEmail: () -> Unit
@@ -624,7 +655,5 @@ private fun RegisterSupportChannelSheet(
         OutlinedButton(onClick = onEmail, modifier = Modifier.fillMaxWidth()) {
             Text("Correo")
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }

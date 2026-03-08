@@ -46,7 +46,7 @@ fun CodeScreen(
                 title = "Verifica tu acceso",
                 subtitle = "Ingresa el código de seguridad que se envió a $email."
             ) {
-                InfoBanner("Este flujo sigue el mismo proceso de la web: login, envío de código y validación final para generar la sesión.")
+
                 Spacer(modifier = Modifier.height(14.dp))
                 OutlinedTextField(
                     value = code,

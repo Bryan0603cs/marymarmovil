@@ -13,8 +13,8 @@ import com.marymar.mobile.domain.model.Role
 import com.marymar.mobile.domain.model.Session
 import com.marymar.mobile.domain.repository.AuthRepository
 import com.marymar.mobile.domain.repository.LoginStep
-import retrofit2.HttpException
 import javax.inject.Inject
+import retrofit2.HttpException
 
 class AuthRepositoryImpl @Inject constructor(
     private val api: AuthApi,
@@ -48,8 +48,12 @@ class AuthRepositoryImpl @Inject constructor(
                 )
             )
 
-            val token = resp.token ?: return ApiResult.Error(resp.mensaje ?: "No se recibió token en el registro")
-            val persona = api.verifyToken(VerifyTokenRequestDto(token))
+            val token = resp.token
+                ?: return ApiResult.Error(resp.mensaje ?: "No se recibió token en el registro")
+
+            val persona = api.verifyToken(
+                VerifyTokenRequestDto(token)
+            )
 
             val session = Session(
                 token = token,
@@ -64,15 +68,27 @@ class AuthRepositoryImpl @Inject constructor(
                 email = session.email,
                 name = session.name,
                 role = session.role.name,
-                userId = session.userId
+                userId = session.userId,
+                phone = persona.telefono,
+                address = persona.direccionEnvio,
+                birthDate = persona.fechaNacimiento,
+                idNumber = persona.numeroIdentificacion
             )
-            tokenProvider.setToken(session.token)
 
+            tokenProvider.setToken(session.token)
             ApiResult.Success(session)
         } catch (e: HttpException) {
-            ApiResult.Error(e.toReadableMessage("No fue posible crear la cuenta"), e.code(), e)
+            ApiResult.Error(
+                e.toReadableMessage("No fue posible crear la cuenta"),
+                e.code(),
+                e
+            )
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado al registrar la cuenta", null, e)
+            ApiResult.Error(
+                e.message ?: "Error inesperado al registrar la cuenta",
+                null,
+                e
+            )
         }
     }
 
@@ -97,17 +113,33 @@ class AuthRepositoryImpl @Inject constructor(
                 )
             )
         } catch (e: HttpException) {
-            ApiResult.Error(e.toReadableMessage("No fue posible iniciar sesión"), e.code(), e)
+            ApiResult.Error(
+                e.toReadableMessage("No fue posible iniciar sesión"),
+                e.code(),
+                e
+            )
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado al iniciar sesión", null, e)
+            ApiResult.Error(
+                e.message ?: "Error inesperado al iniciar sesión",
+                null,
+                e
+            )
         }
     }
 
-    override suspend fun validateCode(email: String, code: String): ApiResult<Session> {
+    override suspend fun validateCode(
+        email: String,
+        code: String
+    ): ApiResult<Session> {
         return try {
             val resp = api.validateCode(email = email, code = code)
-            val token = resp.token ?: return ApiResult.Error(resp.mensaje ?: "Código inválido o sin token")
-            val persona = api.verifyToken(VerifyTokenRequestDto(token))
+
+            val token = resp.token
+                ?: return ApiResult.Error(resp.mensaje ?: "Código inválido o sin token")
+
+            val persona = api.verifyToken(
+                VerifyTokenRequestDto(token)
+            )
 
             val session = Session(
                 token = token,
@@ -122,26 +154,51 @@ class AuthRepositoryImpl @Inject constructor(
                 email = session.email,
                 name = session.name,
                 role = session.role.name,
-                userId = session.userId
+                userId = session.userId,
+                phone = persona.telefono,
+                address = persona.direccionEnvio,
+                birthDate = persona.fechaNacimiento,
+                idNumber = persona.numeroIdentificacion
             )
-            tokenProvider.setToken(session.token)
 
+            tokenProvider.setToken(session.token)
             ApiResult.Success(session)
         } catch (e: HttpException) {
-            ApiResult.Error(e.toReadableMessage("No fue posible validar el código"), e.code(), e)
+            ApiResult.Error(
+                e.toReadableMessage("No fue posible validar el código"),
+                e.code(),
+                e
+            )
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado al validar el código", null, e)
+            ApiResult.Error(
+                e.message ?: "Error inesperado al validar el código",
+                null,
+                e
+            )
         }
     }
 
     override suspend fun resendCode(email: String): ApiResult<String> {
         return try {
-            val response = api.resendCode(ResendCodeRequestDto(email))
-            ApiResult.Success(response.mensaje ?: "Código reenviado correctamente")
+            val response = api.resendCode(
+                ResendCodeRequestDto(email)
+            )
+
+            ApiResult.Success(
+                response.mensaje ?: "Código reenviado correctamente"
+            )
         } catch (e: HttpException) {
-            ApiResult.Error(e.toReadableMessage("No fue posible reenviar el código"), e.code(), e)
+            ApiResult.Error(
+                e.toReadableMessage("No fue posible reenviar el código"),
+                e.code(),
+                e
+            )
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado al reenviar el código", null, e)
+            ApiResult.Error(
+                e.message ?: "Error inesperado al reenviar el código",
+                null,
+                e
+            )
         }
     }
 

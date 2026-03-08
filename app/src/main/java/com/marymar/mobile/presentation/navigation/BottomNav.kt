@@ -5,11 +5,15 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
-fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
+fun BottomNavBar(
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
     val backStack = navController.currentBackStackEntryAsState().value
     val route = backStack?.destination?.route
 
@@ -19,10 +23,18 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
     )
 
     NavigationBar(modifier = modifier) {
-        items.forEach { (r, label) ->
+        items.forEach { (destination, label) ->
             NavigationBarItem(
-                selected = route == r,
-                onClick = { navController.navigate(r) { launchSingleTop = true } },
+                selected = route == destination,
+                onClick = {
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 label = { Text(label) },
                 icon = {}
             )
