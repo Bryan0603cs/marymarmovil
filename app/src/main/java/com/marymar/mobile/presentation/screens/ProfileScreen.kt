@@ -1,21 +1,27 @@
 package com.marymar.mobile.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,13 +37,21 @@ import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
 import com.marymar.mobile.ui.components.PrimaryActionButton
 import com.marymar.mobile.ui.components.SectionHeader
+import com.marymar.mobile.ui.theme.AccentOrange
+import com.marymar.mobile.ui.theme.BorderGray
 import com.marymar.mobile.ui.theme.MutedText
+import com.marymar.mobile.ui.theme.PrimaryBlue
 import com.marymar.mobile.ui.theme.SoftBeige
 import com.marymar.mobile.ui.theme.SurfaceWhite
+import com.marymar.mobile.ui.theme.TextDark
 
 @Composable
 fun ProfileScreen(
     session: SessionSnapshot,
+    passwordChangeLoading: Boolean,
+    passwordChangeInfo: String?,
+    passwordChangeError: String?,
+    onClearPasswordFeedback: () -> Unit,
     onSaveProfile: (String, String, String, String) -> Unit,
     onRequestPasswordChange: () -> Unit,
     onLogout: () -> Unit
@@ -48,7 +62,7 @@ fun ProfileScreen(
     var draftPhone by rememberSaveable { mutableStateOf(session.phone.orEmpty()) }
     var draftAddress by rememberSaveable { mutableStateOf(session.address.orEmpty()) }
     var formError by rememberSaveable { mutableStateOf<String?>(null) }
-    var passwordInfo by rememberSaveable { mutableStateOf<String?>(null) }
+    var localInfo by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(session.name, session.email, session.phone, session.address) {
         if (!editing) {
@@ -61,19 +75,21 @@ fun ProfileScreen(
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
             .background(SoftBeige)
-            .padding(16.dp),
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         SectionHeader(title = "Mi perfil")
 
         ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(22.dp),
-            modifier = Modifier.fillMaxWidth()
+            colors = CardDefaults.elevatedCardColors(containerColor = SurfaceWhite)
         ) {
             Column(
-                modifier = Modifier.padding(18.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (editing) {
@@ -82,6 +98,7 @@ fun ProfileScreen(
                         onValueChange = {
                             draftName = it
                             formError = null
+                            localInfo = null
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -94,6 +111,7 @@ fun ProfileScreen(
                         onValueChange = {
                             draftEmail = it
                             formError = null
+                            localInfo = null
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -107,6 +125,7 @@ fun ProfileScreen(
                         onValueChange = {
                             draftPhone = it
                             formError = null
+                            localInfo = null
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -120,15 +139,15 @@ fun ProfileScreen(
                         onValueChange = {
                             draftAddress = it
                             formError = null
+                            localInfo = null
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         label = { Text("Dirección") }
                     )
 
-                    if (formError != null) {
-                        ErrorBanner(formError ?: "")
-                    }
+                    formError?.let { ErrorBanner(it) }
+                    localInfo?.let { InfoBanner(it) }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -142,8 +161,10 @@ fun ProfileScreen(
                                 draftPhone = session.phone.orEmpty()
                                 draftAddress = session.address.orEmpty()
                                 formError = null
+                                localInfo = null
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
                             Text("Cancelar")
                         }
@@ -173,23 +194,33 @@ fun ProfileScreen(
                                         )
                                         editing = false
                                         formError = null
+                                        localInfo = "Datos actualizados"
                                     }
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentOrange)
                         ) {
                             Text("Guardar")
                         }
                     }
                 } else {
-                    ProfileRow(label = "Nombre", value = session.name ?: "No disponible")
-                    ProfileRow(label = "Correo", value = session.email ?: "No disponible")
-                    ProfileRow(label = "Teléfono", value = session.phone ?: "No disponible")
-                    ProfileRow(label = "Dirección", value = session.address ?: "No disponible")
+                    ProfileValueCard(label = "Nombre", value = session.name ?: "No disponible")
+                    ProfileValueCard(label = "Correo", value = session.email ?: "No disponible")
+                    ProfileValueCard(label = "Teléfono", value = session.phone ?: "No disponible")
+                    ProfileValueCard(label = "Dirección", value = session.address ?: "No disponible")
+                    ProfileValueCard(label = "Rol", value = formatRole(session.role))
+                    ProfileValueCard(label = "ID", value = session.userId?.toString() ?: "No disponible")
+                    ProfileValueCard(label = "Identificación", value = session.idNumber ?: "No disponible")
+
+                    localInfo?.let { InfoBanner(it) }
 
                     OutlinedButton(
-                        onClick = { editing = true },
+                        onClick = {
+                            editing = true
+                            localInfo = null
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp)
                     ) {
@@ -200,87 +231,85 @@ fun ProfileScreen(
         }
 
         ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(22.dp),
-            modifier = Modifier.fillMaxWidth()
+            colors = CardDefaults.elevatedCardColors(containerColor = SurfaceWhite)
         ) {
             Column(
-                modifier = Modifier.padding(18.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Seguridad",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    text = "Para cambiar tu contraseña se enviará el proceso de restablecimiento al correo actual del usuario.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MutedText
-                )
-
-                OutlinedButton(
+                PrimaryActionButton(
+                    text = "Cambiar contraseña",
+                    loading = passwordChangeLoading,
+                    enabled = !session.email.isNullOrBlank(),
                     onClick = {
+                        onClearPasswordFeedback()
                         onRequestPasswordChange()
-                        passwordInfo = "Se envió el proceso de cambio de contraseña a tu correo."
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Text("Cambiar contraseña")
+                    }
+                )
+
+                passwordChangeError?.takeIf { it.isNotBlank() }?.let {
+                    ErrorBanner(it)
                 }
 
-                passwordInfo?.let {
+                passwordChangeInfo?.takeIf { it.isNotBlank() }?.let {
                     InfoBanner(it)
                 }
             }
         }
 
-        ElevatedCard(
-            shape = RoundedCornerShape(22.dp),
-            modifier = Modifier.fillMaxWidth()
+        OutlinedButton(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ProfileRow(label = "Rol", value = session.role ?: "No disponible")
-                ProfileRow(label = "ID", value = session.userId?.toString() ?: "No disponible")
-                ProfileRow(label = "Identificación", value = session.idNumber ?: "No disponible")
-                ProfileRow(label = "Fecha de nacimiento", value = session.birthDate ?: "No disponible")
-            }
+            Text("Cerrar sesión")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        PrimaryActionButton(
-            text = "Cerrar sesión",
-            onClick = onLogout
-        )
+        Spacer(modifier = Modifier.height(18.dp))
     }
 }
 
 @Composable
-private fun ProfileRow(
+private fun ProfileValueCard(
     label: String,
     value: String
 ) {
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceWhite, RoundedCornerShape(16.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+            .border(1.dp, BorderGray, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceWhite
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MutedText
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MutedText
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextDark
+            )
+        }
     }
+}
+
+private fun formatRole(role: String?): String {
+    if (role.isNullOrBlank()) return "No disponible"
+
+    return role
+        .lowercase()
+        .split("_")
+        .joinToString(" ") { part ->
+            part.replaceFirstChar { first ->
+                if (first.isLowerCase()) first.titlecase() else first.toString()
+            }
+        }
 }

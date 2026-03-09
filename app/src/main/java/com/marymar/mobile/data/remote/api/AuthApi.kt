@@ -6,6 +6,7 @@ import com.marymar.mobile.data.remote.dto.LoginRequestDto
 import com.marymar.mobile.data.remote.dto.PersonaResponseDto
 import com.marymar.mobile.data.remote.dto.RegisterRequestDto
 import com.marymar.mobile.data.remote.dto.ResendCodeRequestDto
+import com.marymar.mobile.data.remote.dto.ResetPasswordRequestDto
 import com.marymar.mobile.data.remote.dto.VerifyTokenRequestDto
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -35,4 +36,7 @@ interface AuthApi {
 
     @POST("api/auth/forgot-password")
     suspend fun forgotPassword(@Body body: ForgotPasswordRequestDto): Response<ResponseBody>
+
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(@Body body: ResetPasswordRequestDto): Response<ResponseBody>
 }

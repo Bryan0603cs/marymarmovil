@@ -1,16 +1,20 @@
 package com.marymar.mobile
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,6 +50,7 @@ import com.marymar.mobile.presentation.viewmodel.AuthNext
 import com.marymar.mobile.presentation.viewmodel.AuthViewModel
 import com.marymar.mobile.presentation.viewmodel.ProductsViewModel
 import com.marymar.mobile.presentation.viewmodel.SessionViewModel
+import com.marymar.mobile.ui.theme.AccentOrange
 import com.marymar.mobile.ui.theme.MarymarTheme
 import com.marymar.mobile.ui.theme.MutedText
 import com.marymar.mobile.ui.theme.SurfaceWhite
@@ -62,6 +67,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
@@ -94,6 +100,9 @@ class MainActivity : ComponentActivity() {
                         currentRoute == Routes.Register ||
                         currentRoute?.startsWith(Routes.Code) == true
 
+                val isHomeRoute = currentRoute == Routes.Products ||
+                        currentRoute == Routes.Profile
+
                 val sessionVm: SessionViewModel = hiltViewModel()
 
                 val statusBarColor = if (isLoggedIn) {
@@ -106,12 +115,19 @@ class MainActivity : ComponentActivity() {
                     window.statusBarColor = statusBarColor
                 }
 
-                LaunchedEffect(session.token) {
-                    tokenProvider.setToken(session.token)
+                LaunchedEffect(session.token, isLoggedIn) {
+                    tokenProvider.setToken(session.token.takeIf { isLoggedIn })
                 }
 
                 LaunchedEffect(isLoggedIn, currentRoute) {
-                    if (isLoggedIn && (currentRoute == null || isAuthRoute)) {
+                    if (!isLoggedIn && isHomeRoute) {
+                        nav.navigate(Routes.Login) {
+                            popUpTo(nav.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
+                    } else if (isLoggedIn && (currentRoute == null || isAuthRoute)) {
                         nav.navigate(Routes.Products) {
                             popUpTo(nav.graph.findStartDestination().id) {
                                 inclusive = true
@@ -122,14 +138,14 @@ class MainActivity : ComponentActivity() {
                 }
 
                 fun closeSessionNow() {
-                    nav.navigate(Routes.Login) {
-                        popUpTo(nav.graph.findStartDestination().id) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
                     scope.launch {
                         sessionVm.performLogout()
+                        nav.navigate(Routes.Login) {
+                            popUpTo(nav.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
                     }
                 }
 
@@ -159,9 +175,7 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.width(118.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        OutlinedButton(onClick = { closeSessionNow() }) {
-                                            Text("Cerrar sesión")
-                                        }
+
                                     }
                                 },
                                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -271,9 +285,14 @@ class MainActivity : ComponentActivity() {
 
                         composable(Routes.Profile) {
                             val authVm: AuthViewModel = hiltViewModel()
+                            val authState by authVm.ui.collectAsStateWithLifecycle()
 
                             ProfileScreen(
                                 session = session,
+                                passwordChangeLoading = authState.loadingForgot,
+                                passwordChangeInfo = authState.info,
+                                passwordChangeError = authState.error,
+                                onClearPasswordFeedback = { authVm.clearBanners() },
                                 onSaveProfile = { name, email, phone, address ->
                                     sessionVm.updateProfile(
                                         name = name,

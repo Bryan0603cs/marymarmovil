@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,46 +42,54 @@ fun CodeScreen(
             verticalArrangement = Arrangement.Center
         ) {
             AuthCard(
-                title = "Verifica tu acceso",
-                subtitle = "Ingresa el código de seguridad que se envió a $email."
+                title = "Código de verificación",
+                subtitle = ""
             ) {
-
                 Spacer(modifier = Modifier.height(14.dp))
+
                 OutlinedTextField(
                     value = code,
-                    onValueChange = { code = it },
-                    label = { Text("Código de verificación") },
+                    onValueChange = {
+                        code = it
+                        vm.clearBanners()
+                    },
+                    label = { Text("Código") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+
                 Spacer(modifier = Modifier.height(14.dp))
-                if (state.error != null) {
-                    ErrorBanner(state.error ?: "")
+
+                state.error?.takeIf { it.isNotBlank() }?.let {
+                    ErrorBanner(it)
                     Spacer(modifier = Modifier.height(14.dp))
                 }
-                if (state.info != null) {
-                    InfoBanner(state.info ?: "")
+
+                state.info?.takeIf { it.isNotBlank() }?.let {
+                    InfoBanner(it)
                     Spacer(modifier = Modifier.height(14.dp))
                 }
+
                 PrimaryActionButton(
                     text = "Validar código",
                     loading = state.loading,
                     enabled = code.isNotBlank(),
                     onClick = { vm.validateCode(email, code.trim()) }
                 )
+
                 Spacer(modifier = Modifier.height(10.dp))
+
                 SecondaryActionButton(
-                    text = if (state.loadingResend) "Reenviando código..." else "Reenviar código",
+                    text = if (state.loadingResend) "Reenviando..." else "Reenviar código",
                     onClick = { vm.resendCode(email) }
                 )
+
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Si el correo tarda en llegar, revisa spam o vuelve a enviar el código.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+
+                SecondaryActionButton(
+                    text = "Volver",
+                    onClick = onBack
                 )
-                Spacer(modifier = Modifier.height(10.dp))
-                SecondaryActionButton(text = "Volver al login", onClick = onBack)
             }
         }
     }

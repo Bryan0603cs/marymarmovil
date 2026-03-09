@@ -65,10 +65,15 @@ class SessionStore @Inject constructor(
             prefs[Keys.USER_ID] = userId
             prefs[Keys.LOGGED_IN] = true
 
-            if (phone != null) prefs[Keys.PHONE] = phone else prefs.remove(Keys.PHONE)
-            if (address != null) prefs[Keys.ADDRESS] = address else prefs.remove(Keys.ADDRESS)
-            if (birthDate != null) prefs[Keys.BIRTH_DATE] = birthDate else prefs.remove(Keys.BIRTH_DATE)
-            if (idNumber != null) prefs[Keys.ID_NUMBER] = idNumber else prefs.remove(Keys.ID_NUMBER)
+            val resolvedPhone = phone.toUsefulValue() ?: prefs[Keys.PHONE]
+            val resolvedAddress = address.toUsefulValue() ?: prefs[Keys.ADDRESS]
+            val resolvedBirthDate = birthDate.toUsefulValue() ?: prefs[Keys.BIRTH_DATE]
+            val resolvedIdNumber = idNumber.toUsefulValue() ?: prefs[Keys.ID_NUMBER]
+
+            if (resolvedPhone != null) prefs[Keys.PHONE] = resolvedPhone else prefs.remove(Keys.PHONE)
+            if (resolvedAddress != null) prefs[Keys.ADDRESS] = resolvedAddress else prefs.remove(Keys.ADDRESS)
+            if (resolvedBirthDate != null) prefs[Keys.BIRTH_DATE] = resolvedBirthDate else prefs.remove(Keys.BIRTH_DATE)
+            if (resolvedIdNumber != null) prefs[Keys.ID_NUMBER] = resolvedIdNumber else prefs.remove(Keys.ID_NUMBER)
         }
     }
 
@@ -79,10 +84,10 @@ class SessionStore @Inject constructor(
         address: String
     ) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.NAME] = name
-            prefs[Keys.EMAIL] = email
-            prefs[Keys.PHONE] = phone
-            prefs[Keys.ADDRESS] = address
+            prefs[Keys.NAME] = name.trim()
+            prefs[Keys.EMAIL] = email.trim()
+            prefs[Keys.PHONE] = phone.trim()
+            prefs[Keys.ADDRESS] = address.trim()
         }
     }
 
@@ -90,6 +95,11 @@ class SessionStore @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs.clear()
         }
+    }
+
+    private fun String?.toUsefulValue(): String? {
+        val cleaned = this?.trim()
+        return cleaned?.takeIf { it.isNotEmpty() }
     }
 }
 

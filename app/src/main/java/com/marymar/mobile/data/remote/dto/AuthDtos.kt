@@ -24,6 +24,11 @@ data class ForgotPasswordRequestDto(
     @Json(name = "email") val email: String
 )
 
+data class ResetPasswordRequestDto(
+    @Json(name = "token") val token: String,
+    @Json(name = "newPassword") val newPassword: String
+)
+
 data class AuthResponseDto(
     @Json(name = "token") val token: String? = null,
     @Json(name = "nombre") val nombre: String? = null,

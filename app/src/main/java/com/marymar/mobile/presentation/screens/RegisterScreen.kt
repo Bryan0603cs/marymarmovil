@@ -115,7 +115,7 @@ fun RegisterScreen(
     var captchaReloadNonce by rememberSaveable { mutableStateOf(0) }
     var previousCaptchaVerified by rememberSaveable { mutableStateOf(false) }
     var captchaLocalError by rememberSaveable { mutableStateOf<String?>(null) }
-    var captchaHeight by rememberSaveable { mutableStateOf(96) }
+    var captchaHeight by rememberSaveable { mutableStateOf(88) }
 
     val animatedCaptchaHeight by animateDpAsState(
         targetValue = captchaHeight.dp,
@@ -423,7 +423,7 @@ fun RegisterScreen(
                             color = SurfaceWhite
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
                             ) {
                                 if (captchaError || captchaLocalError != null) {
                                     Text(
@@ -442,22 +442,22 @@ fun RegisterScreen(
                                     reloadNonce = captchaReloadNonce,
                                     onTokenReceived = { token ->
                                         captchaLocalError = null
-                                        captchaHeight = 96
+                                        captchaHeight = 88
                                         vm.setCaptchaToken(token)
                                     },
                                     onExpired = {
                                         captchaLocalError =
                                             "La verificación ha caducado. Vuelve a marcar la casilla."
-                                        captchaHeight = 96
+                                        captchaHeight = 88
                                         vm.clearCaptcha()
                                     },
                                     onError = { message ->
                                         captchaLocalError = message
-                                        captchaHeight = 96
+                                        captchaHeight = 88
                                         vm.clearCaptcha()
                                     },
                                     onHeightChanged = { newHeight ->
-                                        captchaHeight = newHeight.coerceIn(96, 700)
+                                        captchaHeight = newHeight.coerceIn(88, 540)
                                     }
                                 )
                             }

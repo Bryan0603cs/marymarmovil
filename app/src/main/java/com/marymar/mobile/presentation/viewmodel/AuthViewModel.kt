@@ -12,12 +12,12 @@ import com.marymar.mobile.domain.usecase.RegisterUseCase
 import com.marymar.mobile.domain.usecase.ResendCodeUseCase
 import com.marymar.mobile.domain.usecase.ValidateCodeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
-import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
@@ -37,7 +37,7 @@ class AuthViewModel @Inject constructor(
             captchaToken = clean,
             captchaVerified = clean.isNotBlank(),
             error = null,
-            info = if (clean.isNotBlank()) "Verificación de seguridad lista" else null
+            info = null
         )
     }
 
@@ -49,7 +49,10 @@ class AuthViewModel @Inject constructor(
     }
 
     fun clearBanners() {
-        _ui.value = _ui.value.copy(error = null, info = null)
+        _ui.value = _ui.value.copy(
+            error = null,
+            info = null
+        )
     }
 
     fun login(email: String, password: String) {
@@ -61,7 +64,7 @@ class AuthViewModel @Inject constructor(
         }
 
         if (captchaToken.isBlank()) {
-            _ui.value = _ui.value.copy(error = "Debes validar la verificación de seguridad")
+            _ui.value = _ui.value.copy(error = "Completa el captcha")
             return
         }
 
@@ -78,7 +81,7 @@ class AuthViewModel @Inject constructor(
                     val step = res.data
                     _ui.value = _ui.value.copy(
                         loading = false,
-                        info = step.message ?: "Código enviado a tu correo",
+                        info = if (step.requires2FA) "Código enviado" else null,
                         next = if (step.requires2FA) {
                             AuthNext.GoToCode(email.trim())
                         } else {
@@ -111,7 +114,7 @@ class AuthViewModel @Inject constructor(
                     if (res.data.role == Role.ADMINISTRADOR) {
                         _ui.value = _ui.value.copy(
                             loading = false,
-                            error = "El rol administrador debe ingresar desde la página web."
+                            error = "Este rol ingresa desde web"
                         )
                     } else {
                         _ui.value = _ui.value.copy(
@@ -122,9 +125,22 @@ class AuthViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
+                    val message = if (
+                        res.code in listOf(400, 401, 403, 404) ||
+                        res.message.contains("código", ignoreCase = true) ||
+                        res.message.contains("codigo", ignoreCase = true) ||
+                        res.message.contains("code", ignoreCase = true) ||
+                        res.message.contains("invál", ignoreCase = true) ||
+                        res.message.contains("invalid", ignoreCase = true)
+                    ) {
+                        "Código incorrecto"
+                    } else {
+                        "No fue posible validar el código"
+                    }
+
                     _ui.value = _ui.value.copy(
                         loading = false,
-                        error = res.message
+                        error = message
                     )
                 }
             }
@@ -143,7 +159,7 @@ class AuthViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _ui.value = _ui.value.copy(
                         loadingResend = false,
-                        info = res.data.ifBlank { "Código reenviado correctamente" }
+                        info = "Código reenviado"
                     )
                 }
 
@@ -159,7 +175,7 @@ class AuthViewModel @Inject constructor(
 
     fun forgotPassword(email: String) {
         if (email.isBlank()) {
-            _ui.value = _ui.value.copy(error = "Escribe tu correo para recuperar la contraseña")
+            _ui.value = _ui.value.copy(error = "Correo no disponible")
             return
         }
 
@@ -175,23 +191,23 @@ class AuthViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _ui.value = _ui.value.copy(
                         loadingForgot = false,
-                        info = "Te enviamos el correo de recuperación"
+                        info = "Revisa tu correo"
                     )
                 } else {
                     _ui.value = _ui.value.copy(
                         loadingForgot = false,
-                        error = "No fue posible enviar el correo de recuperación"
+                        error = "No fue posible enviar el correo"
                     )
                 }
             } catch (e: HttpException) {
                 _ui.value = _ui.value.copy(
                     loadingForgot = false,
-                    error = e.toReadableMessage("No fue posible enviar el correo de recuperación")
+                    error = e.toReadableMessage("No fue posible enviar el correo")
                 )
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(
                     loadingForgot = false,
-                    error = e.message ?: "Error inesperado al recuperar la contraseña"
+                    error = e.message ?: "Error inesperado"
                 )
             }
         }
@@ -210,7 +226,7 @@ class AuthViewModel @Inject constructor(
         val captchaToken = _ui.value.captchaToken.trim()
 
         if (captchaToken.isBlank()) {
-            _ui.value = _ui.value.copy(error = "Debes validar la verificación de seguridad")
+            _ui.value = _ui.value.copy(error = "Completa el captcha")
             return
         }
 
@@ -254,7 +270,8 @@ class AuthViewModel @Inject constructor(
 
     fun onGoogleLoginRequested() {
         _ui.value = _ui.value.copy(
-            info = "Google Login en la app requiere que el backend redirija a un deep link móvil. Por ahora déjalo como próximo paso."
+            error = null,
+            info = null
         )
     }
 
