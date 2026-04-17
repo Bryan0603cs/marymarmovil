@@ -3,10 +3,8 @@ package com.marymar.mobile.presentation.screens
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,8 +68,6 @@ import com.marymar.mobile.presentation.viewmodel.AuthViewModel
 import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
 import com.marymar.mobile.ui.components.PrimaryActionButton
-import com.marymar.mobile.ui.components.RecaptchaWidget
-import com.marymar.mobile.ui.theme.BorderGray
 import com.marymar.mobile.ui.theme.MutedText
 import com.marymar.mobile.ui.theme.PrimaryBlue
 import com.marymar.mobile.ui.theme.SecondaryBlue
@@ -112,16 +108,6 @@ fun RegisterScreen(
     var fontScale by rememberSaveable { mutableStateOf(1f) }
     var highContrast by rememberSaveable { mutableStateOf(false) }
 
-    var captchaReloadNonce by rememberSaveable { mutableStateOf(0) }
-    var previousCaptchaVerified by rememberSaveable { mutableStateOf(false) }
-    var captchaLocalError by rememberSaveable { mutableStateOf<String?>(null) }
-    var captchaHeight by rememberSaveable { mutableStateOf(88) }
-
-    val animatedCaptchaHeight by animateDpAsState(
-        targetValue = captchaHeight.dp,
-        label = "registerCaptchaHeight"
-    )
-
     val scrollState = rememberScrollState()
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val accessibilitySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -131,22 +117,12 @@ fun RegisterScreen(
     val headerColor = if (highContrast) Color(0xFF1D242B) else SurfaceWhite
     val primaryText = if (highContrast) Color(0xFF0E3445) else PrimaryBlue
     val secondaryText = if (highContrast) Color(0xFF313131) else MutedText
-
-    val captchaError = state.error?.contains("captcha", ignoreCase = true) == true
     val habeasError = state.error?.contains("habeas", ignoreCase = true) == true ||
             state.error?.contains("tratamiento de datos", ignoreCase = true) == true
 
     val nonSpecialError = state.error?.takeIf {
-        !it.contains("captcha", ignoreCase = true) &&
-                !it.contains("habeas", ignoreCase = true) &&
+        !it.contains("habeas", ignoreCase = true) &&
                 !it.contains("tratamiento de datos", ignoreCase = true)
-    }
-
-    LaunchedEffect(state.captchaVerified) {
-        if (previousCaptchaVerified && !state.captchaVerified) {
-            captchaReloadNonce += 1
-        }
-        previousCaptchaVerified = state.captchaVerified
     }
 
     val calendar = Calendar.getInstance()
@@ -296,7 +272,6 @@ fun RegisterScreen(
                             value = idNumber,
                             onValueChange = {
                                 idNumber = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -310,7 +285,6 @@ fun RegisterScreen(
                             value = name,
                             onValueChange = {
                                 name = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -323,7 +297,6 @@ fun RegisterScreen(
                             value = email,
                             onValueChange = {
                                 email = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -337,7 +310,6 @@ fun RegisterScreen(
                             value = password,
                             onValueChange = {
                                 password = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -381,7 +353,6 @@ fun RegisterScreen(
                             value = phone,
                             onValueChange = {
                                 phone = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -412,55 +383,16 @@ fun RegisterScreen(
                         }
 
                         Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(
-                                    width = 1.dp,
-                                    color = if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
-                                    shape = RoundedCornerShape(10.dp)
-                                ),
-                            shape = RoundedCornerShape(10.dp),
-                            color = SurfaceWhite
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF5F8FC)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
-                            ) {
-                                if (captchaError || captchaLocalError != null) {
-                                    Text(
-                                        text = captchaLocalError
-                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla.",
-                                        color = Color(0xFFD93025),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                }
-
-                                RecaptchaWidget(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(animatedCaptchaHeight),
-                                    reloadNonce = captchaReloadNonce,
-                                    onTokenReceived = { token ->
-                                        captchaLocalError = null
-                                        captchaHeight = 88
-                                        vm.setCaptchaToken(token)
-                                    },
-                                    onExpired = {
-                                        captchaLocalError =
-                                            "La verificación ha caducado. Vuelve a marcar la casilla."
-                                        captchaHeight = 88
-                                        vm.clearCaptcha()
-                                    },
-                                    onError = { message ->
-                                        captchaLocalError = message
-                                        captchaHeight = 88
-                                        vm.clearCaptcha()
-                                    },
-                                    onHeightChanged = { newHeight ->
-                                        captchaHeight = newHeight.coerceIn(88, 540)
-                                    }
-                                )
-                            }
+                            Text(
+                                text = "La app ejecuta reCAPTCHA nativo automáticamente al registrarte.",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = secondaryText
+                            )
                         }
 
                         PrimaryActionButton(
@@ -472,27 +404,22 @@ fun RegisterScreen(
                                     password.isNotBlank() &&
                                     birthDateIso.isNotBlank() &&
                                     phone.isNotBlank() &&
-                                    aceptaDatos &&
-                                    state.captchaVerified,
+                                    aceptaDatos,
                             onClick = {
-                                if (!state.captchaVerified) {
-                                    captchaLocalError = "Completa el captcha"
-                                } else {
-                                    vm.register(
-                                        idNumber = idNumber.trim(),
-                                        name = name.trim(),
-                                        email = email.trim(),
-                                        password = password,
-                                        phone = phone.trim(),
-                                        birthDateIso = birthDateIso,
-                                        role = Role.CLIENTE,
-                                        aceptaHabeasData = aceptaDatos
-                                    )
-                                }
+                                vm.register(
+                                    idNumber = idNumber.trim(),
+                                    name = name.trim(),
+                                    email = email.trim(),
+                                    password = password,
+                                    phone = phone.trim(),
+                                    birthDateIso = birthDateIso,
+                                    role = Role.CLIENTE,
+                                    aceptaHabeasData = aceptaDatos
+                                )
                             }
                         )
 
-                        if (!captchaError && !habeasError) {
+                        if (!habeasError) {
                             nonSpecialError?.takeIf { it.isNotBlank() }?.let { errorText ->
                                 ErrorBanner(errorText)
                             }

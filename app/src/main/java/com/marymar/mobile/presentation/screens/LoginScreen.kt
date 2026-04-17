@@ -1,5 +1,6 @@
 package com.marymar.mobile.presentation.screens
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.animateDpAsState
@@ -45,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,18 +63,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.marymar.mobile.R
+import com.marymar.mobile.core.auth.GoogleSignInManager
 import com.marymar.mobile.presentation.viewmodel.AuthNext
 import com.marymar.mobile.presentation.viewmodel.AuthViewModel
 import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
 import com.marymar.mobile.ui.components.PrimaryActionButton
-import com.marymar.mobile.ui.components.RecaptchaWidget
 import com.marymar.mobile.ui.theme.BorderGray
 import com.marymar.mobile.ui.theme.MutedText
 import com.marymar.mobile.ui.theme.PrimaryBlue
 import com.marymar.mobile.ui.theme.SecondaryBlue
 import com.marymar.mobile.ui.theme.SoftBeige
 import com.marymar.mobile.ui.theme.SurfaceWhite
+import kotlinx.coroutines.launch
 
 private const val SUPPORT_PHONE = "573003710163"
 private const val SUPPORT_EMAIL = "soporte@marymar.com"
@@ -82,12 +85,14 @@ private const val SUPPORT_WHATSAPP = "573003710163"
 @Composable
 fun LoginScreen(
     vm: AuthViewModel,
+    googleSignInManager: GoogleSignInManager,
     onRegister: () -> Unit,
     onGoToCode: (String) -> Unit
 ) {
     val state by vm.ui.collectAsState()
     val context = LocalContext.current
     val currentDensity = LocalDensity.current
+    val scope = rememberCoroutineScope()
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -99,16 +104,6 @@ fun LoginScreen(
     var fontScale by rememberSaveable { mutableStateOf(1f) }
     var highContrast by rememberSaveable { mutableStateOf(false) }
 
-    var captchaReloadNonce by rememberSaveable { mutableStateOf(0) }
-    var previousCaptchaVerified by rememberSaveable { mutableStateOf(false) }
-    var captchaLocalError by rememberSaveable { mutableStateOf<String?>(null) }
-    var captchaHeight by rememberSaveable { mutableStateOf(88) }
-
-    val animatedCaptchaHeight by animateDpAsState(
-        targetValue = captchaHeight.dp,
-        label = "loginCaptchaHeight"
-    )
-
     val scrollState = rememberScrollState()
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val accessibilitySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -118,16 +113,7 @@ fun LoginScreen(
     val headerColor = if (highContrast) Color(0xFF1D242B) else SurfaceWhite
     val primaryText = if (highContrast) Color(0xFF0E3445) else PrimaryBlue
     val secondaryText = if (highContrast) Color(0xFF313131) else MutedText
-
-    val captchaError = state.error?.contains("captcha", ignoreCase = true) == true
-    val nonCaptchaError = state.error?.takeIf { !it.contains("captcha", ignoreCase = true) }
-
-    LaunchedEffect(state.captchaVerified) {
-        if (previousCaptchaVerified && !state.captchaVerified) {
-            captchaReloadNonce += 1
-        }
-        previousCaptchaVerified = state.captchaVerified
-    }
+    val nonCaptchaError = state.error
 
     LaunchedEffect(state.next) {
         when (val next = state.next) {
@@ -275,7 +261,6 @@ fun LoginScreen(
                             value = email,
                             onValueChange = {
                                 email = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -289,7 +274,6 @@ fun LoginScreen(
                             value = password,
                             onValueChange = {
                                 password = it
-                                captchaLocalError = null
                                 vm.clearBanners()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -313,55 +297,16 @@ fun LoginScreen(
                         )
 
                         Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(
-                                    width = 1.dp,
-                                    color = if (state.captchaVerified) Color(0xFF2E7D32) else BorderGray,
-                                    shape = RoundedCornerShape(10.dp)
-                                ),
-                            shape = RoundedCornerShape(10.dp),
-                            color = SurfaceWhite
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF5F8FC)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
-                            ) {
-                                if (captchaError || captchaLocalError != null) {
-                                    Text(
-                                        text = captchaLocalError
-                                            ?: "La verificación ha caducado. Vuelve a marcar la casilla.",
-                                        color = Color(0xFFD93025),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                }
-
-                                RecaptchaWidget(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(animatedCaptchaHeight),
-                                    reloadNonce = captchaReloadNonce,
-                                    onTokenReceived = { token ->
-                                        captchaLocalError = null
-                                        captchaHeight = 88
-                                        vm.setCaptchaToken(token)
-                                    },
-                                    onExpired = {
-                                        captchaLocalError =
-                                            "La verificación ha caducado. Vuelve a marcar la casilla."
-                                        captchaHeight = 88
-                                        vm.clearCaptcha()
-                                    },
-                                    onError = { message ->
-                                        captchaLocalError = message
-                                        captchaHeight = 88
-                                        vm.clearCaptcha()
-                                    },
-                                    onHeightChanged = { newHeight ->
-                                        captchaHeight = newHeight.coerceIn(88, 540)
-                                    }
-                                )
-                            }
+                            Text(
+                                text = "La app ejecuta reCAPTCHA nativo automáticamente al iniciar sesión.",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = secondaryText
+                            )
                         }
 
                         PrimaryActionButton(
@@ -369,20 +314,14 @@ fun LoginScreen(
                             loading = state.loading,
                             enabled = email.isNotBlank() &&
                                     password.isNotBlank() &&
-                                    state.captchaVerified,
+                                    !state.loadingGoogle,
                             onClick = {
-                                if (!state.captchaVerified) {
-                                    captchaLocalError = "Completa el captcha"
-                                } else {
-                                    vm.login(email.trim(), password)
-                                }
+                                vm.login(email.trim(), password)
                             }
                         )
 
-                        if (!captchaError) {
-                            nonCaptchaError?.takeIf { it.isNotBlank() }?.let { errorText ->
-                                ErrorBanner(errorText)
-                            }
+                        nonCaptchaError?.takeIf { it.isNotBlank() }?.let { errorText ->
+                            ErrorBanner(errorText)
                         }
 
                         state.info?.takeIf { it.isNotBlank() }?.let { infoText ->
@@ -390,7 +329,25 @@ fun LoginScreen(
                         }
 
                         LoginGoogleButton(
-                            onClick = { vm.onGoogleLoginRequested() }
+                            loading = state.loadingGoogle,
+                            enabled = !state.loading,
+                            onClick = {
+                                val activity = context as? Activity
+                                if (activity == null) {
+                                    vm.cancelGoogleLogin("No fue posible abrir el selector de Google en este contexto")
+                                } else {
+                                    vm.startGoogleLoginFlow()
+                                    scope.launch {
+                                        googleSignInManager.requestGoogleIdToken(activity)
+                                            .onSuccess { idToken ->
+                                                vm.loginWithGoogle(idToken)
+                                            }
+                                            .onFailure { error ->
+                                                vm.cancelGoogleLogin(googleSignInManager.toUserMessage(error))
+                                            }
+                                    }
+                                }
+                            }
                         )
 
                         TextButton(
@@ -443,10 +400,13 @@ fun LoginScreen(
 
 @Composable
 private fun LoginGoogleButton(
+    loading: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled && !loading,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.outlinedButtonColors(
@@ -475,7 +435,7 @@ private fun LoginGoogleButton(
             Spacer(modifier = Modifier.size(12.dp))
 
             Text(
-                text = "Continuar con Google",
+                text = if (loading) "Conectando con Google..." else "Continuar con Google",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
             )
         }

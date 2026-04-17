@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.marymar.mobile.core.auth.GoogleSignInManager
 import com.marymar.mobile.core.network.TokenProvider
 import com.marymar.mobile.core.storage.SessionSnapshot
 import com.marymar.mobile.core.storage.SessionStore
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var sessionStore: SessionStore
     @Inject lateinit var tokenProvider: TokenProvider
+    @Inject lateinit var googleSignInManager: GoogleSignInManager
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -222,6 +224,7 @@ class MainActivity : ComponentActivity() {
 
                             LoginScreen(
                                 vm = vm,
+                                googleSignInManager = googleSignInManager,
                                 onRegister = { nav.navigate(Routes.Register) },
                                 onGoToCode = { email ->
                                     nav.navigate("${Routes.Code}?email=$email")

@@ -2,9 +2,12 @@ package com.marymar.mobile.data.repository
 
 import com.marymar.mobile.core.network.TokenProvider
 import com.marymar.mobile.core.network.toReadableMessage
+import com.marymar.mobile.core.network.toUserFriendlyMessage
 import com.marymar.mobile.core.storage.SessionStore
 import com.marymar.mobile.core.util.ApiResult
 import com.marymar.mobile.data.remote.api.AuthApi
+import com.marymar.mobile.data.remote.dto.AuthResponseDto
+import com.marymar.mobile.data.remote.dto.GoogleMobileLoginRequestDto
 import com.marymar.mobile.data.remote.dto.LoginRequestDto
 import com.marymar.mobile.data.remote.dto.RegisterRequestDto
 import com.marymar.mobile.data.remote.dto.ResendCodeRequestDto
@@ -31,7 +34,8 @@ class AuthRepositoryImpl @Inject constructor(
         birthDateIso: String,
         role: Role,
         aceptaHabeasData: Boolean,
-        captchaToken: String
+        captchaToken: String,
+        captchaAction: String
     ): ApiResult<Session> {
         return try {
             val resp = api.register(
@@ -44,39 +48,12 @@ class AuthRepositoryImpl @Inject constructor(
                     fechaNacimiento = birthDateIso,
                     rol = role.name,
                     aceptaHabeasData = aceptaHabeasData,
-                    captchaToken = captchaToken
+                    captchaToken = captchaToken,
+                    captchaAction = captchaAction
                 )
             )
 
-            val token = resp.token
-                ?: return ApiResult.Error(resp.mensaje ?: "No se recibió token en el registro")
-
-            val persona = api.verifyToken(
-                VerifyTokenRequestDto(token)
-            )
-
-            val session = Session(
-                token = token,
-                userId = persona.id,
-                email = persona.email,
-                name = resp.nombre ?: persona.nombre,
-                role = Role.valueOf(persona.rol)
-            )
-
-            sessionStore.saveSession(
-                token = session.token,
-                email = session.email,
-                name = session.name,
-                role = session.role.name,
-                userId = session.userId,
-                phone = persona.telefono,
-                address = persona.direccionEnvio,
-                birthDate = persona.fechaNacimiento,
-                idNumber = persona.numeroIdentificacion
-            )
-
-            tokenProvider.setToken(session.token)
-            ApiResult.Success(session)
+            createAndPersistSession(resp)
         } catch (e: HttpException) {
             ApiResult.Error(
                 e.toReadableMessage("No fue posible crear la cuenta"),
@@ -85,7 +62,7 @@ class AuthRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             ApiResult.Error(
-                e.message ?: "Error inesperado al registrar la cuenta",
+                e.toUserFriendlyMessage("No fue posible crear la cuenta"),
                 null,
                 e
             )
@@ -95,14 +72,16 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun login(
         email: String,
         password: String,
-        captchaToken: String
+        captchaToken: String,
+        captchaAction: String
     ): ApiResult<LoginStep> {
         return try {
             val resp = api.login(
                 LoginRequestDto(
                     email = email,
                     contrasena = password,
-                    captchaToken = captchaToken
+                    captchaToken = captchaToken,
+                    captchaAction = captchaAction
                 )
             )
 
@@ -120,7 +99,37 @@ class AuthRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             ApiResult.Error(
-                e.message ?: "Error inesperado al iniciar sesión",
+                e.toUserFriendlyMessage("No fue posible iniciar sesión"),
+                null,
+                e
+            )
+        }
+    }
+
+    override suspend fun loginWithGoogle(
+        idToken: String,
+        captchaToken: String,
+        captchaAction: String
+    ): ApiResult<Session> {
+        return try {
+            val resp = api.loginWithGoogleMobile(
+                GoogleMobileLoginRequestDto(
+                    idToken = idToken,
+                    captchaToken = captchaToken,
+                    captchaAction = captchaAction
+                )
+            )
+
+            createAndPersistSession(resp)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                e.toReadableMessage("No fue posible iniciar sesión con Google"),
+                e.code(),
+                e
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(
+                e.toUserFriendlyMessage("No fue posible iniciar sesión con Google"),
                 null,
                 e
             )
@@ -133,36 +142,7 @@ class AuthRepositoryImpl @Inject constructor(
     ): ApiResult<Session> {
         return try {
             val resp = api.validateCode(email = email, code = code)
-
-            val token = resp.token
-                ?: return ApiResult.Error(resp.mensaje ?: "Código inválido o sin token")
-
-            val persona = api.verifyToken(
-                VerifyTokenRequestDto(token)
-            )
-
-            val session = Session(
-                token = token,
-                userId = persona.id,
-                email = persona.email,
-                name = resp.nombre ?: persona.nombre,
-                role = Role.valueOf(persona.rol)
-            )
-
-            sessionStore.saveSession(
-                token = session.token,
-                email = session.email,
-                name = session.name,
-                role = session.role.name,
-                userId = session.userId,
-                phone = persona.telefono,
-                address = persona.direccionEnvio,
-                birthDate = persona.fechaNacimiento,
-                idNumber = persona.numeroIdentificacion
-            )
-
-            tokenProvider.setToken(session.token)
-            ApiResult.Success(session)
+            createAndPersistSession(resp)
         } catch (e: HttpException) {
             ApiResult.Error(
                 e.toReadableMessage("No fue posible validar el código"),
@@ -171,7 +151,7 @@ class AuthRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             ApiResult.Error(
-                e.message ?: "Error inesperado al validar el código",
+                e.toUserFriendlyMessage("No fue posible validar el código"),
                 null,
                 e
             )
@@ -195,7 +175,7 @@ class AuthRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             ApiResult.Error(
-                e.message ?: "Error inesperado al reenviar el código",
+                e.toUserFriendlyMessage("No fue posible reenviar el código"),
                 null,
                 e
             )
@@ -205,5 +185,37 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         tokenProvider.setToken(null)
         sessionStore.clear()
+    }
+
+    private suspend fun createAndPersistSession(resp: AuthResponseDto): ApiResult<Session> {
+        val token = resp.token
+            ?: return ApiResult.Error(resp.mensaje ?: "No se recibió token de autenticación")
+
+        val persona = api.verifyToken(
+            VerifyTokenRequestDto(token)
+        )
+
+        val session = Session(
+            token = token,
+            userId = persona.id,
+            email = persona.email,
+            name = resp.nombre ?: persona.nombre,
+            role = Role.valueOf(persona.rol)
+        )
+
+        sessionStore.saveSession(
+            token = session.token,
+            email = session.email,
+            name = session.name,
+            role = session.role.name,
+            userId = session.userId,
+            phone = persona.telefono,
+            address = persona.direccionEnvio,
+            birthDate = persona.fechaNacimiento,
+            idNumber = persona.numeroIdentificacion
+        )
+
+        tokenProvider.setToken(session.token)
+        return ApiResult.Success(session)
     }
 }

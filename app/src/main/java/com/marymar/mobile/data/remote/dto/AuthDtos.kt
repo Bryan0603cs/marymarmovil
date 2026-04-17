@@ -5,7 +5,9 @@ import com.squareup.moshi.Json
 data class LoginRequestDto(
     @Json(name = "email") val email: String,
     @Json(name = "contrasena") val contrasena: String,
-    @Json(name = "captchaToken") val captchaToken: String
+    @Json(name = "captchaToken") val captchaToken: String,
+    @Json(name = "captchaClient") val captchaClient: String = "ANDROID",
+    @Json(name = "captchaAction") val captchaAction: String = "LOGIN"
 )
 
 data class RegisterRequestDto(
@@ -17,7 +19,15 @@ data class RegisterRequestDto(
     @Json(name = "fechaNacimiento") val fechaNacimiento: String,
     @Json(name = "rol") val rol: String,
     @Json(name = "aceptaHabeasData") val aceptaHabeasData: Boolean,
-    @Json(name = "captchaToken") val captchaToken: String
+    @Json(name = "captchaToken") val captchaToken: String,
+    @Json(name = "captchaClient") val captchaClient: String = "ANDROID",
+    @Json(name = "captchaAction") val captchaAction: String = "REGISTER"
+)
+
+data class GoogleMobileLoginRequestDto(
+    @Json(name = "idToken") val idToken: String,
+    @Json(name = "captchaToken") val captchaToken: String,
+    @Json(name = "captchaAction") val captchaAction: String = "GOOGLE_LOGIN"
 )
 
 data class ForgotPasswordRequestDto(

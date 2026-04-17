@@ -1,5 +1,7 @@
 package com.marymar.mobile.data.repository
 
+import com.marymar.mobile.core.network.toReadableMessage
+import com.marymar.mobile.core.network.toUserFriendlyMessage
 import com.marymar.mobile.core.util.ApiResult
 import com.marymar.mobile.data.remote.api.OrderApi
 import com.marymar.mobile.data.remote.dto.OrderCreateDto
@@ -27,9 +29,9 @@ class OrderRepositoryImpl @Inject constructor(
             )
             ApiResult.Success(api.createOrder(body))
         } catch (e: HttpException) {
-            ApiResult.Error("Error HTTP ${e.code()}", e.code(), e)
+            ApiResult.Error(e.toReadableMessage("No fue posible crear el pedido"), e.code(), e)
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado", null, e)
+            ApiResult.Error(e.toUserFriendlyMessage("No fue posible crear el pedido"), null, e)
         }
     }
 
@@ -37,9 +39,9 @@ class OrderRepositoryImpl @Inject constructor(
         return try {
             ApiResult.Success(api.getOrdersByClient(clienteId))
         } catch (e: HttpException) {
-            ApiResult.Error("Error HTTP ${e.code()}", e.code(), e)
+            ApiResult.Error(e.toReadableMessage("No fue posible cargar los pedidos"), e.code(), e)
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado", null, e)
+            ApiResult.Error(e.toUserFriendlyMessage("No fue posible cargar los pedidos"), null, e)
         }
     }
 }

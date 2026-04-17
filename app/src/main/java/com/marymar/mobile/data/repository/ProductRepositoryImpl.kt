@@ -1,6 +1,7 @@
 package com.marymar.mobile.data.repository
 
 import com.marymar.mobile.core.network.toReadableMessage
+import com.marymar.mobile.core.network.toUserFriendlyMessage
 import com.marymar.mobile.core.util.ApiResult
 import com.marymar.mobile.data.remote.api.ProductApi
 import com.marymar.mobile.domain.model.Product
@@ -32,7 +33,7 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: HttpException) {
             ApiResult.Error(e.toReadableMessage("No fue posible cargar el menú"), e.code(), e)
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "Error inesperado al cargar productos", null, e)
+            ApiResult.Error(e.toUserFriendlyMessage("No fue posible cargar el menú"), null, e)
         }
     }
 }

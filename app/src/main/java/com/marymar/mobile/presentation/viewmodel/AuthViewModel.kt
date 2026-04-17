@@ -3,11 +3,15 @@ package com.marymar.mobile.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marymar.mobile.core.network.toReadableMessage
+import com.marymar.mobile.core.network.toUserFriendlyMessage
+import com.marymar.mobile.core.security.NativeRecaptchaManager
 import com.marymar.mobile.core.util.ApiResult
 import com.marymar.mobile.data.remote.api.AuthApi
 import com.marymar.mobile.data.remote.dto.ForgotPasswordRequestDto
+import com.marymar.mobile.domain.model.AuthAction
 import com.marymar.mobile.domain.model.Role
 import com.marymar.mobile.domain.usecase.LoginUseCase
+import com.marymar.mobile.domain.usecase.LoginWithGoogleUseCase
 import com.marymar.mobile.domain.usecase.RegisterUseCase
 import com.marymar.mobile.domain.usecase.ResendCodeUseCase
 import com.marymar.mobile.domain.usecase.ValidateCodeUseCase
@@ -23,30 +27,15 @@ import retrofit2.HttpException
 class AuthViewModel @Inject constructor(
     private val authApi: AuthApi,
     private val loginUseCase: LoginUseCase,
+    private val loginWithGoogleUseCase: LoginWithGoogleUseCase,
     private val validateCodeUseCase: ValidateCodeUseCase,
     private val registerUseCase: RegisterUseCase,
-    private val resendCodeUseCase: ResendCodeUseCase
+    private val resendCodeUseCase: ResendCodeUseCase,
+    private val nativeRecaptchaManager: NativeRecaptchaManager
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(AuthUiState())
     val ui: StateFlow<AuthUiState> = _ui.asStateFlow()
-
-    fun setCaptchaToken(token: String) {
-        val clean = token.trim()
-        _ui.value = _ui.value.copy(
-            captchaToken = clean,
-            captchaVerified = clean.isNotBlank(),
-            error = null,
-            info = null
-        )
-    }
-
-    fun clearCaptcha() {
-        _ui.value = _ui.value.copy(
-            captchaToken = "",
-            captchaVerified = false
-        )
-    }
 
     fun clearBanners() {
         _ui.value = _ui.value.copy(
@@ -55,16 +44,28 @@ class AuthViewModel @Inject constructor(
         )
     }
 
+    fun startGoogleLoginFlow() {
+        _ui.value = _ui.value.copy(
+            loadingGoogle = true,
+            error = null,
+            info = null,
+            next = null
+        )
+    }
+
+    fun cancelGoogleLogin(message: String? = null) {
+        _ui.value = _ui.value.copy(
+            loadingGoogle = false,
+            error = message,
+            info = null
+        )
+    }
+
     fun login(email: String, password: String) {
-        val captchaToken = _ui.value.captchaToken.trim()
+        val cleanEmail = email.trim()
 
-        if (email.isBlank() || password.isBlank()) {
+        if (cleanEmail.isBlank() || password.isBlank()) {
             _ui.value = _ui.value.copy(error = "Completa el correo y la contraseña")
-            return
-        }
-
-        if (captchaToken.isBlank()) {
-            _ui.value = _ui.value.copy(error = "Completa el captcha")
             return
         }
 
@@ -76,14 +77,23 @@ class AuthViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            when (val res = loginUseCase(email.trim(), password, captchaToken)) {
+            val captchaToken = nativeRecaptchaManager.execute(AuthAction.LOGIN)
+                .getOrElse { throwable ->
+                    _ui.value = _ui.value.copy(
+                        loading = false,
+                        error = recaptchaErrorMessage(throwable)
+                    )
+                    return@launch
+                }
+
+            when (val res = loginUseCase(cleanEmail, password, captchaToken, AuthAction.LOGIN)) {
                 is ApiResult.Success -> {
                     val step = res.data
                     _ui.value = _ui.value.copy(
                         loading = false,
                         info = if (step.requires2FA) "Código enviado" else null,
                         next = if (step.requires2FA) {
-                            AuthNext.GoToCode(email.trim())
+                            AuthNext.GoToCode(cleanEmail)
                         } else {
                             AuthNext.LoggedIn
                         }
@@ -93,6 +103,63 @@ class AuthViewModel @Inject constructor(
                 is ApiResult.Error -> {
                     _ui.value = _ui.value.copy(
                         loading = false,
+                        error = res.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun loginWithGoogle(idToken: String) {
+        if (idToken.isBlank()) {
+            _ui.value = _ui.value.copy(
+                loadingGoogle = false,
+                error = "Google no devolvió un token válido"
+            )
+            return
+        }
+
+        _ui.value = _ui.value.copy(
+            loadingGoogle = true,
+            error = null,
+            info = null,
+            next = null
+        )
+
+        viewModelScope.launch {
+            val captchaToken = nativeRecaptchaManager.execute(AuthAction.GOOGLE_LOGIN)
+                .getOrElse { throwable ->
+                    _ui.value = _ui.value.copy(
+                        loadingGoogle = false,
+                        error = recaptchaErrorMessage(throwable)
+                    )
+                    return@launch
+                }
+
+            when (
+                val res = loginWithGoogleUseCase(
+                    idToken = idToken,
+                    captchaToken = captchaToken,
+                    captchaAction = AuthAction.GOOGLE_LOGIN
+                )
+            ) {
+                is ApiResult.Success -> {
+                    if (res.data.role == Role.ADMINISTRADOR) {
+                        _ui.value = _ui.value.copy(
+                            loadingGoogle = false,
+                            error = "Este rol ingresa desde web"
+                        )
+                    } else {
+                        _ui.value = _ui.value.copy(
+                            loadingGoogle = false,
+                            next = AuthNext.LoggedIn
+                        )
+                    }
+                }
+
+                is ApiResult.Error -> {
+                    _ui.value = _ui.value.copy(
+                        loadingGoogle = false,
                         error = res.message
                     )
                 }
@@ -207,7 +274,7 @@ class AuthViewModel @Inject constructor(
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(
                     loadingForgot = false,
-                    error = e.message ?: "Error inesperado"
+                    error = e.toUserFriendlyMessage("No fue posible enviar el correo")
                 )
             }
         }
@@ -223,10 +290,8 @@ class AuthViewModel @Inject constructor(
         role: Role,
         aceptaHabeasData: Boolean
     ) {
-        val captchaToken = _ui.value.captchaToken.trim()
-
-        if (captchaToken.isBlank()) {
-            _ui.value = _ui.value.copy(error = "Completa el captcha")
+        if (!aceptaHabeasData) {
+            _ui.value = _ui.value.copy(error = "Debes aceptar la Política de Tratamiento de Datos")
             return
         }
 
@@ -238,6 +303,15 @@ class AuthViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
+            val captchaToken = nativeRecaptchaManager.execute(AuthAction.REGISTER)
+                .getOrElse { throwable ->
+                    _ui.value = _ui.value.copy(
+                        loading = false,
+                        error = recaptchaErrorMessage(throwable)
+                    )
+                    return@launch
+                }
+
             when (
                 val res = registerUseCase(
                     idNumber = idNumber,
@@ -248,7 +322,8 @@ class AuthViewModel @Inject constructor(
                     birthDateIso = birthDateIso,
                     role = role,
                     aceptaHabeasData = aceptaHabeasData,
-                    captchaToken = captchaToken
+                    captchaToken = captchaToken,
+                    captchaAction = AuthAction.REGISTER
                 )
             ) {
                 is ApiResult.Success -> {
@@ -268,27 +343,28 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun onGoogleLoginRequested() {
-        _ui.value = _ui.value.copy(
-            error = null,
-            info = null
-        )
-    }
-
     fun consumeNext() {
         _ui.value = _ui.value.copy(next = null)
+    }
+
+    private fun recaptchaErrorMessage(throwable: Throwable): String {
+        val raw = throwable.message.orEmpty()
+        return when {
+            raw.contains("network", ignoreCase = true) || raw.contains("timeout", ignoreCase = true) ->
+                "No fue posible validar la seguridad de la app. Revisa tu conexión e inténtalo de nuevo."
+            else -> "No fue posible validar la seguridad de la app. Intenta nuevamente."
+        }
     }
 }
 
 data class AuthUiState(
     val loading: Boolean = false,
+    val loadingGoogle: Boolean = false,
     val loadingResend: Boolean = false,
     val loadingForgot: Boolean = false,
     val error: String? = null,
     val info: String? = null,
-    val next: AuthNext? = null,
-    val captchaToken: String = "",
-    val captchaVerified: Boolean = false
+    val next: AuthNext? = null
 )
 
 sealed class AuthNext {

@@ -2,6 +2,7 @@ package com.marymar.mobile.data.remote.api
 
 import com.marymar.mobile.data.remote.dto.AuthResponseDto
 import com.marymar.mobile.data.remote.dto.ForgotPasswordRequestDto
+import com.marymar.mobile.data.remote.dto.GoogleMobileLoginRequestDto
 import com.marymar.mobile.data.remote.dto.LoginRequestDto
 import com.marymar.mobile.data.remote.dto.PersonaResponseDto
 import com.marymar.mobile.data.remote.dto.RegisterRequestDto
@@ -21,6 +22,9 @@ interface AuthApi {
 
     @POST("api/auth/login")
     suspend fun login(@Body body: LoginRequestDto): AuthResponseDto
+
+    @POST("api/auth/google/mobile")
+    suspend fun loginWithGoogleMobile(@Body body: GoogleMobileLoginRequestDto): AuthResponseDto
 
     @POST("api/auth/validate-code")
     suspend fun validateCode(

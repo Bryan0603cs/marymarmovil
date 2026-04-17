@@ -14,14 +14,22 @@ interface AuthRepository {
         birthDateIso: String,
         role: Role,
         aceptaHabeasData: Boolean,
-        captchaToken: String
+        captchaToken: String,
+        captchaAction: String
     ): ApiResult<Session>
 
     suspend fun login(
         email: String,
         password: String,
-        captchaToken: String
+        captchaToken: String,
+        captchaAction: String
     ): ApiResult<LoginStep>
+
+    suspend fun loginWithGoogle(
+        idToken: String,
+        captchaToken: String,
+        captchaAction: String
+    ): ApiResult<Session>
 
     suspend fun validateCode(email: String, code: String): ApiResult<Session>
     suspend fun resendCode(email: String): ApiResult<String>
