@@ -6,5 +6,10 @@ object Routes {
     const val Code = "auth/code"
 
     const val Products = "home/products"
+    const val Cart = "home/cart"
+    const val Orders = "home/orders"
+    const val Tables = "home/tables"
     const val Profile = "home/profile"
+    const val ActiveTableOrder = "home/table-order"
+    const val OrderDetail = "home/order-detail"
 }

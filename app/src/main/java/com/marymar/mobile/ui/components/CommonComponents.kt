@@ -47,7 +47,6 @@ import com.marymar.mobile.ui.theme.SurfaceWhite
 fun AuthBackground(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(PrimaryBlue, SecondaryBlue)
@@ -130,6 +129,7 @@ fun ErrorBanner(text: String) {
 @Composable
 fun PrimaryActionButton(
     text: String,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     loading: Boolean = false,
     enabled: Boolean = true,
     onClick: () -> Unit
@@ -137,7 +137,7 @@ fun PrimaryActionButton(
     Button(
         onClick = onClick,
         enabled = enabled && !loading,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = AccentOrange)
     ) {
@@ -154,10 +154,14 @@ fun PrimaryActionButton(
 }
 
 @Composable
-fun SecondaryActionButton(text: String, onClick: () -> Unit) {
+fun SecondaryActionButton(
+    text: String,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    onClick: () -> Unit
+) {
     OutlinedButton(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(14.dp)
     ) {
         Text(text)
@@ -192,7 +196,6 @@ fun SectionHeader(title: String, subtitle: String? = null) {
 fun StatusChip(text: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
             .background(
                 color = if (selected) MaterialTheme.colorScheme.primary else SurfaceWhite,
                 shape = RoundedCornerShape(999.dp)

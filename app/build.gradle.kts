@@ -47,7 +47,7 @@ android {
             quoted(
                 readConfig(
                     "MARYMAR_GOOGLE_WEB_CLIENT_ID",
-                    "965937548247-oplp9p196hsbn67ktcdvur7s4h18osou.apps.googleusercontent.com"
+                    "965937548247-c67jne4p4b8s9eo4u6isbhso38415vs1.apps.googleusercontent.com"
                 )
             )
         )

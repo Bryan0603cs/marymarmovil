@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +22,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,17 +39,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.marymar.mobile.presentation.viewmodel.CartViewModel
 import com.marymar.mobile.presentation.viewmodel.ProductsViewModel
 import com.marymar.mobile.ui.components.ErrorBanner
+import com.marymar.mobile.ui.components.PrimaryActionButton
 import com.marymar.mobile.ui.components.SectionHeader
+import com.marymar.mobile.ui.components.SecondaryActionButton
 import com.marymar.mobile.ui.theme.AccentOrange
 import com.marymar.mobile.ui.theme.SoftBeige
 import com.marymar.mobile.ui.theme.SurfaceWhite
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProductListScreen(productsVm: ProductsViewModel) {
+fun ProductListScreen(
+    productsVm: ProductsViewModel,
+    cartVm: CartViewModel,
+    onOpenCart: () -> Unit
+) {
     val state by productsVm.ui.collectAsState()
+    val cartState by cartVm.ui.collectAsState()
     val focusManager = LocalFocusManager.current
 
     var searchText by rememberSaveable { mutableStateOf("") }
@@ -60,15 +68,12 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
     }
 
     val visibleProducts = state.products.filter { product ->
-        val matchesCategory = state.selectedCategory == null ||
-                product.category == state.selectedCategory
-
+        val matchesCategory = state.selectedCategory == null || product.category == state.selectedCategory
         val query = appliedQuery.trim().lowercase()
         val matchesQuery = query.isBlank() ||
                 product.name.lowercase().contains(query) ||
                 (product.category?.lowercase()?.contains(query) == true) ||
                 (product.description?.lowercase()?.contains(query) == true)
-
         matchesCategory && matchesQuery
     }
 
@@ -86,7 +91,17 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        SectionHeader(title = "Menú disponible")
+        SectionHeader(
+            title = "Menú disponible",
+            subtitle = "Arma pedidos a domicilio con productos validados por inventario"
+        )
+
+        if (cartState.items.isNotEmpty()) {
+            SecondaryActionButton(
+                text = "Ver carrito (${cartVm.totalItems()} productos)",
+                onClick = onOpenCart
+            )
+        }
 
         OutlinedTextField(
             value = searchText,
@@ -111,16 +126,8 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
                     onClick = { productsVm.setCategory(null) },
                     label = { Text("Todos") },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = if (state.selectedCategory == null) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            SurfaceWhite
-                        },
-                        labelColor = if (state.selectedCategory == null) {
-                            SurfaceWhite
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        }
+                        containerColor = if (state.selectedCategory == null) MaterialTheme.colorScheme.primary else SurfaceWhite,
+                        labelColor = if (state.selectedCategory == null) SurfaceWhite else MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -129,16 +136,8 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
                         onClick = { productsVm.setCategory(category) },
                         label = { Text(category) },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (state.selectedCategory == category) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                SurfaceWhite
-                            },
-                            labelColor = if (state.selectedCategory == category) {
-                                SurfaceWhite
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            }
+                            containerColor = if (state.selectedCategory == category) MaterialTheme.colorScheme.primary else SurfaceWhite,
+                            labelColor = if (state.selectedCategory == category) SurfaceWhite else MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -147,27 +146,16 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
 
         when {
             state.loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
-
-            state.error != null -> {
-                ErrorBanner(state.error ?: "")
-            }
-
+            state.error != null -> ErrorBanner(state.error ?: "")
             visibleProducts.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No hay productos para mostrar con ese filtro.")
                 }
             }
-
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -191,7 +179,7 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
 
                                 Column(
                                     modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Text(
                                         text = product.name,
@@ -217,12 +205,23 @@ fun ProductListScreen(productsVm: ProductsViewModel) {
                                         )
                                     }
 
-                                    Text(
-                                        text = "$${String.format("%,.0f", product.price)}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = AccentOrange,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "$${String.format("%,.0f", product.price)}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = AccentOrange,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        PrimaryActionButton(
+                                            text = "Agregar",
+                                            modifier = Modifier,
+                                            onClick = { cartVm.add(product) }
+                                        )
+                                    }
                                 }
                             }
                         }

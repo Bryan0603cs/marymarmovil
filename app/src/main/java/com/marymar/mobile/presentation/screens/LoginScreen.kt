@@ -85,9 +85,9 @@ private const val SUPPORT_EMAIL = "soporte@marymar.com"
 private const val SUPPORT_WHATSAPP = "573003710163"
 
 private val NavyDark = Color(0xFF0F2B3D)
-private val FieldBg  = Color(0xFFF5EFE8)
+private val FieldBg = Color(0xFFF5EFE8)
 private val CaptchaBg = Color(0xFFEEEAE3)
-private val BlueLine  = Color(0xFF2196F3)
+private val BlueLine = Color(0xFF2196F3)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,14 +114,17 @@ fun LoginScreen(
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val accessibilitySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val bgColor      = if (highContrast) Color(0xFF14181C) else SoftBeige
-    val cardColor    = if (highContrast) Color(0xFFF6F6F6) else SurfaceWhite
-    val primaryText  = if (highContrast) Color(0xFF0E3445) else NavyDark
+    val bgColor = if (highContrast) Color(0xFF14181C) else SoftBeige
+    val cardColor = if (highContrast) Color(0xFFF6F6F6) else SurfaceWhite
+    val primaryText = if (highContrast) Color(0xFF0E3445) else NavyDark
     val secondaryText = if (highContrast) Color(0xFF313131) else MutedText
 
     LaunchedEffect(state.next) {
         when (val next = state.next) {
-            is AuthNext.GoToCode -> { vm.consumeNext(); onGoToCode(next.email) }
+            is AuthNext.GoToCode -> {
+                vm.consumeNext()
+                onGoToCode(next.email)
+            }
             AuthNext.LoggedIn -> vm.consumeNext()
             null -> Unit
         }
@@ -187,7 +190,6 @@ fun LoginScreen(
                     .padding(horizontal = 24.dp, vertical = 36.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                /* ── HEADER ── */
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -208,16 +210,18 @@ fun LoginScreen(
                         letterSpacing = 2.sp
                     )
                 }
+
                 Spacer(modifier = Modifier.height(6.dp))
+
                 Text(
                     text = "Inicia sesión para continuar",
                     style = MaterialTheme.typography.bodyMedium,
                     color = secondaryText,
                     textAlign = TextAlign.Center
                 )
+
                 Spacer(modifier = Modifier.height(30.dp))
 
-                /* ── CARD ── */
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(28.dp),
@@ -230,7 +234,6 @@ fun LoginScreen(
                             .padding(horizontal = 24.dp, vertical = 28.dp),
                         verticalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
-                        /* Título Welcome + línea azul */
                         Column {
                             Text(
                                 text = "Welcome",
@@ -248,7 +251,6 @@ fun LoginScreen(
                             )
                         }
 
-                        /* Campo email */
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "CORREO ELECTRÓNICO",
@@ -259,12 +261,17 @@ fun LoginScreen(
                             )
                             OutlinedTextField(
                                 value = email,
-                                onValueChange = { email = it; vm.clearBanners() },
+                                onValueChange = {
+                                    email = it
+                                    vm.clearBanners()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 shape = RoundedCornerShape(50.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                placeholder = { Text("ejemplo@correo.com", color = MutedText.copy(alpha = 0.7f)) },
+                                placeholder = {
+                                    Text("ejemplo@correo.com", color = MutedText.copy(alpha = 0.7f))
+                                },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedContainerColor = FieldBg,
                                     focusedContainerColor = FieldBg,
@@ -274,7 +281,6 @@ fun LoginScreen(
                             )
                         }
 
-                        /* Campo contraseña */
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "CONTRASEÑA",
@@ -285,12 +291,19 @@ fun LoginScreen(
                             )
                             OutlinedTextField(
                                 value = password,
-                                onValueChange = { password = it; vm.clearBanners() },
+                                onValueChange = {
+                                    password = it
+                                    vm.clearBanners()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 shape = RoundedCornerShape(50.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                                visualTransformation = if (showPassword) {
+                                    VisualTransformation.None
+                                } else {
+                                    PasswordVisualTransformation()
+                                },
                                 placeholder = { Text("••••••••", color = MutedText) },
                                 trailingIcon = {
                                     TextButton(onClick = { showPassword = !showPassword }) {
@@ -311,57 +324,51 @@ fun LoginScreen(
                             )
                         }
 
-                        /* reCAPTCHA visual (el nativo corre en background al presionar Ingresar) */
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(50.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = CaptchaBg
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4A5568)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
+                                    Text("✓", color = Color.White, fontSize = 14.sp)
+                                }
+
+                                Column {
+                                    Text(
+                                        text = "Verificación de seguridad automática",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = primaryText,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "No soy un robot",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = primaryText
+                                        text = "Se ejecuta al presionar Ingresar",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = secondaryText
                                     )
-                                }
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0xFF4A5568)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("✓", color = Color.White, fontSize = 14.sp)
-                                    }
-                                    Text(text = "reCAPTCHA", style = MaterialTheme.typography.labelSmall, color = secondaryText, fontSize = 8.sp)
                                 }
                             }
                         }
 
-                        /* Errores / Info */
                         state.error?.takeIf { it.isNotBlank() }?.let { ErrorBanner(it) }
                         state.info?.takeIf { it.isNotBlank() }?.let { InfoBanner(it) }
 
-                        /* Botón Ingresar */
                         Button(
                             onClick = { vm.login(email.trim(), password) },
                             enabled = email.isNotBlank() && password.isNotBlank() && !state.loading && !state.loadingGoogle,
-                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
                             shape = RoundedCornerShape(50.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = NavyDark,
@@ -371,7 +378,11 @@ fun LoginScreen(
                             )
                         ) {
                             if (state.loading) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = SurfaceWhite)
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = SurfaceWhite
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(
@@ -381,7 +392,6 @@ fun LoginScreen(
                             )
                         }
 
-                        /* Botón Google */
                         OutlinedButton(
                             onClick = {
                                 val activity = context as? Activity
@@ -397,7 +407,9 @@ fun LoginScreen(
                                 }
                             },
                             enabled = !state.loading && !state.loadingGoogle,
-                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
                             shape = RoundedCornerShape(50.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = SurfaceWhite,
@@ -405,22 +417,41 @@ fun LoginScreen(
                             )
                         ) {
                             if (state.loadingGoogle) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF4285F4))
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFF4285F4)
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Conectando con Google...", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Conectando con Google...",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             } else {
                                 Box(
-                                    modifier = Modifier.size(22.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFF5F5F5)),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFFF5F5F5)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(
+                                        "G",
+                                        color = Color(0xFF4285F4),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text("Continuar con Google", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Continuar con Google",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
 
-                        /* ¿Olvidaste tu contraseña? */
                         TextButton(
                             onClick = { vm.forgotPassword(email.trim()) },
                             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -432,15 +463,23 @@ fun LoginScreen(
                             )
                         }
 
-                        /* ¿No tienes cuenta? Regístrate */
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("¿No tienes cuenta? ", color = secondaryText, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "¿No tienes cuenta? ",
+                                color = secondaryText,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                             TextButton(onClick = onRegister, contentPadding = PaddingValues(0.dp)) {
-                                Text("Regístrate", color = primaryText, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Regístrate",
+                                    color = primaryText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -449,49 +488,103 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(90.dp))
             }
 
-            /* FABs */
             FloatingActionButton(
                 onClick = { showAccessibilitySheet = true },
-                modifier = Modifier.align(Alignment.BottomStart).padding(18.dp),
-                containerColor = SecondaryBlue, shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(18.dp),
+                containerColor = SecondaryBlue,
+                shape = CircleShape,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) { Text("♿", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium) }
+            ) {
+                Text("♿", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
+            }
 
             FloatingActionButton(
                 onClick = { showSupportSheet = true },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp),
-                containerColor = Color(0xFF2ECC71), shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(18.dp),
+                containerColor = Color(0xFF2ECC71),
+                shape = CircleShape,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) { Text("💬", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium) }
+            ) {
+                Text("💬", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }
 
 @Composable
 private fun LoginAccessibilitySheet(
-    fontScale: Float, highContrast: Boolean,
-    onIncrease: () -> Unit, onDecrease: () -> Unit,
-    onToggleHighContrast: () -> Unit, onReset: () -> Unit
+    fontScale: Float,
+    highContrast: Boolean,
+    onIncrease: () -> Unit,
+    onDecrease: () -> Unit,
+    onToggleHighContrast: () -> Unit,
+    onReset: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Accesibilidad", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.headlineSmall, color = PrimaryBlue, textAlign = TextAlign.Center)
-        OutlinedButton(onClick = onIncrease, modifier = Modifier.fillMaxWidth()) { Text("Aumentar texto") }
-        OutlinedButton(onClick = onDecrease, modifier = Modifier.fillMaxWidth()) { Text("Disminuir texto") }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(
+            "Accesibilidad",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.headlineSmall,
+            color = PrimaryBlue,
+            textAlign = TextAlign.Center
+        )
+        OutlinedButton(onClick = onIncrease, modifier = Modifier.fillMaxWidth()) {
+            Text("Aumentar texto")
+        }
+        OutlinedButton(onClick = onDecrease, modifier = Modifier.fillMaxWidth()) {
+            Text("Disminuir texto")
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text("Contraste alto")
             Switch(checked = highContrast, onCheckedChange = { onToggleHighContrast() })
         }
         Text("Escala actual: ${"%.1f".format(fontScale)}x", color = MutedText)
-        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) { Text("Restablecer") }
+        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+            Text("Restablecer")
+        }
     }
 }
 
 @Composable
-private fun LoginSupportSheet(onWhatsApp: () -> Unit, onCall: () -> Unit, onEmail: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Canales de comunicación", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.headlineSmall, color = PrimaryBlue, textAlign = TextAlign.Center)
-        OutlinedButton(onClick = onWhatsApp, modifier = Modifier.fillMaxWidth()) { Text("WhatsApp") }
-        OutlinedButton(onClick = onCall, modifier = Modifier.fillMaxWidth()) { Text("Llamar") }
-        OutlinedButton(onClick = onEmail, modifier = Modifier.fillMaxWidth()) { Text("Correo") }
+private fun LoginSupportSheet(
+    onWhatsApp: () -> Unit,
+    onCall: () -> Unit,
+    onEmail: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(
+            "Canales de comunicación",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.headlineSmall,
+            color = PrimaryBlue,
+            textAlign = TextAlign.Center
+        )
+        OutlinedButton(onClick = onWhatsApp, modifier = Modifier.fillMaxWidth()) {
+            Text("WhatsApp")
+        }
+        OutlinedButton(onClick = onCall, modifier = Modifier.fillMaxWidth()) {
+            Text("Llamar")
+        }
+        OutlinedButton(onClick = onEmail, modifier = Modifier.fillMaxWidth()) {
+            Text("Correo")
+        }
     }
 }
