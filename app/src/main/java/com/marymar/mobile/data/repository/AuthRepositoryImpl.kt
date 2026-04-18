@@ -35,7 +35,8 @@ class AuthRepositoryImpl @Inject constructor(
         role: Role,
         aceptaHabeasData: Boolean,
         captchaToken: String,
-        captchaAction: String
+        captchaAction: String,
+        captchaClient: String
     ): ApiResult<Session> {
         return try {
             val resp = api.register(
@@ -49,6 +50,7 @@ class AuthRepositoryImpl @Inject constructor(
                     rol = role.name,
                     aceptaHabeasData = aceptaHabeasData,
                     captchaToken = captchaToken,
+                    captchaClient = captchaClient,
                     captchaAction = captchaAction
                 )
             )
@@ -73,7 +75,8 @@ class AuthRepositoryImpl @Inject constructor(
         email: String,
         password: String,
         captchaToken: String,
-        captchaAction: String
+        captchaAction: String,
+        captchaClient: String
     ): ApiResult<LoginStep> {
         return try {
             val resp = api.login(
@@ -81,6 +84,7 @@ class AuthRepositoryImpl @Inject constructor(
                     email = email,
                     contrasena = password,
                     captchaToken = captchaToken,
+                    captchaClient = captchaClient,
                     captchaAction = captchaAction
                 )
             )

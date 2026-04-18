@@ -11,12 +11,14 @@ class LoginUseCase @Inject constructor(
         email: String,
         password: String,
         captchaToken: String,
-        captchaAction: String
+        captchaAction: String,
+        captchaClient: String = "ANDROID"
     ) = repo.login(
         email = email,
         password = password,
         captchaToken = captchaToken,
-        captchaAction = captchaAction
+        captchaAction = captchaAction,
+        captchaClient = captchaClient
     )
 }
 
@@ -61,7 +63,8 @@ class RegisterUseCase @Inject constructor(
         role: Role,
         aceptaHabeasData: Boolean,
         captchaToken: String,
-        captchaAction: String
+        captchaAction: String,
+        captchaClient: String = "WEB"
     ) = repo.register(
         idNumber = idNumber,
         name = name,
@@ -72,7 +75,8 @@ class RegisterUseCase @Inject constructor(
         role = role,
         aceptaHabeasData = aceptaHabeasData,
         captchaToken = captchaToken,
-        captchaAction = captchaAction
+        captchaAction = captchaAction,
+        captchaClient = captchaClient
     )
 }
 

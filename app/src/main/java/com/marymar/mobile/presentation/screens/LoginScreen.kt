@@ -14,57 +14,50 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marymar.mobile.R
@@ -73,23 +66,19 @@ import com.marymar.mobile.presentation.viewmodel.AuthNext
 import com.marymar.mobile.presentation.viewmodel.AuthViewModel
 import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
+import com.marymar.mobile.ui.components.RecaptchaWidget
 import com.marymar.mobile.ui.theme.MutedText
-import com.marymar.mobile.ui.theme.PrimaryBlue
-import com.marymar.mobile.ui.theme.SecondaryBlue
 import com.marymar.mobile.ui.theme.SoftBeige
 import com.marymar.mobile.ui.theme.SurfaceWhite
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
-private const val SUPPORT_PHONE = "573003710163"
-private const val SUPPORT_EMAIL = "soporte@marymar.com"
-private const val SUPPORT_WHATSAPP = "573003710163"
+private val LoginPrimary = Color(0xFF0F2B3D)
+private val LoginAccent = Color(0xFF2196F3)
+private val LoginField = Color(0xFFF2ECE6)
+private val LoginCaptcha = Color(0xFFECE7DF)
+private val LoginSuccess = Color(0xFF2E7D32)
 
-private val NavyDark = Color(0xFF0F2B3D)
-private val FieldBg = Color(0xFFF5EFE8)
-private val CaptchaBg = Color(0xFFEEEAE3)
-private val BlueLine = Color(0xFF2196F3)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     vm: AuthViewModel,
@@ -99,25 +88,21 @@ fun LoginScreen(
 ) {
     val state by vm.ui.collectAsState()
     val context = LocalContext.current
-    val currentDensity = LocalDensity.current
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showPassword by rememberSaveable { mutableStateOf(false) }
-    var showAccessibilitySheet by rememberSaveable { mutableStateOf(false) }
-    var showSupportSheet by rememberSaveable { mutableStateOf(false) }
-    var fontScale by rememberSaveable { mutableStateOf(1f) }
-    var highContrast by rememberSaveable { mutableStateOf(false) }
+
+    var manualCaptchaRequired by rememberSaveable { mutableStateOf(false) }
+    var manualCaptchaToken by rememberSaveable { mutableStateOf("") }
+    var manualCaptchaError by rememberSaveable { mutableStateOf<String?>(null) }
+    var lastAttemptWasAutomatic by rememberSaveable { mutableStateOf(false) }
+    var reloadNonce by rememberSaveable { mutableIntStateOf(0) }
+    var captchaHeightPx by rememberSaveable { mutableIntStateOf(90) }
 
     val scrollState = rememberScrollState()
-    val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val accessibilitySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val bgColor = if (highContrast) Color(0xFF14181C) else SoftBeige
-    val cardColor = if (highContrast) Color(0xFFF6F6F6) else SurfaceWhite
-    val primaryText = if (highContrast) Color(0xFF0E3445) else NavyDark
-    val secondaryText = if (highContrast) Color(0xFF313131) else MutedText
 
     LaunchedEffect(state.next) {
         when (val next = state.next) {
@@ -130,461 +115,410 @@ fun LoginScreen(
         }
     }
 
-    CompositionLocalProvider(
-        LocalDensity provides Density(
-            density = currentDensity.density,
-            fontScale = currentDensity.fontScale * fontScale
-        )
+    LaunchedEffect(state.error) {
+        if (!state.error.isNullOrBlank() && lastAttemptWasAutomatic) {
+            manualCaptchaRequired = true
+            manualCaptchaToken = ""
+            manualCaptchaError = "Completa la verificación manual para volver a intentar."
+            reloadNonce += 1
+            lastAttemptWasAutomatic = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SoftBeige)
+            .safeDrawingPadding()
+            .imePadding()
     ) {
-        if (showSupportSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showSupportSheet = false },
-                sheetState = supportSheetState,
-                containerColor = SurfaceWhite
-            ) {
-                LoginSupportSheet(
-                    onWhatsApp = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$SUPPORT_WHATSAPP")))
-                    },
-                    onCall = {
-                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$SUPPORT_PHONE")))
-                    },
-                    onEmail = {
-                        context.startActivity(Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:$SUPPORT_EMAIL")
-                            putExtra(Intent.EXTRA_SUBJECT, "Soporte Mar y Mar")
-                        })
-                    }
-                )
-            }
-        }
-
-        if (showAccessibilitySheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showAccessibilitySheet = false },
-                sheetState = accessibilitySheetState,
-                containerColor = SurfaceWhite
-            ) {
-                LoginAccessibilitySheet(
-                    fontScale = fontScale,
-                    highContrast = highContrast,
-                    onIncrease = { fontScale = (fontScale + 0.1f).coerceAtMost(1.35f) },
-                    onDecrease = { fontScale = (fontScale - 0.1f).coerceAtLeast(0.90f) },
-                    onToggleHighContrast = { highContrast = !highContrast },
-                    onReset = { fontScale = 1f; highContrast = false }
-                )
-            }
-        }
-
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(bgColor)
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 22.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 24.dp, vertical = 36.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.logo_mar_y_mar),
-                        contentDescription = "Logo Mar y Mar",
-                        modifier = Modifier.size(36.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "MAR Y MAR",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = primaryText,
-                        letterSpacing = 2.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = "Inicia sesión para continuar",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = secondaryText,
-                    textAlign = TextAlign.Center
+                Image(
+                    painter = painterResource(id = R.drawable.logo_mar_y_mar),
+                    contentDescription = "Logo Mar y Mar",
+                    modifier = Modifier.size(34.dp),
+                    contentScale = ContentScale.Fit
                 )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "MAR Y MAR",
+                    color = LoginPrimary,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.headlineMedium,
+                    letterSpacing = 2.sp
+                )
+            }
 
-                Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
+            Text(
+                text = "Inicia sesión para continuar",
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = SurfaceWhite),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 28.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = "Welcome",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = primaryText
-                            )
-                            Spacer(modifier = Modifier.height(5.dp))
-                            Box(
-                                modifier = Modifier
-                                    .width(44.dp)
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(BlueLine)
-                            )
-                        }
+                    Text(
+                        text = "Iniciar sesión",
+                        color = LoginPrimary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
 
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "CORREO ELECTRÓNICO",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = primaryText,
-                                letterSpacing = 0.8.sp
-                            )
-                            OutlinedTextField(
-                                value = email,
-                                onValueChange = {
-                                    email = it
-                                    vm.clearBanners()
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(50.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                placeholder = {
-                                    Text("ejemplo@correo.com", color = MutedText.copy(alpha = 0.7f))
-                                },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedContainerColor = FieldBg,
-                                    focusedContainerColor = FieldBg,
-                                    unfocusedBorderColor = Color.Transparent,
-                                    focusedBorderColor = BlueLine
-                                )
-                            )
-                        }
+                    LoginField(
+                        label = "CORREO ELECTRÓNICO",
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            vm.clearBanners()
+                            manualCaptchaError = null
+                        },
+                        placeholder = "ejemplo@correo.com",
+                        keyboardType = KeyboardType.Email
+                    )
 
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "CONTRASEÑA",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = primaryText,
-                                letterSpacing = 0.8.sp
-                            )
-                            OutlinedTextField(
-                                value = password,
-                                onValueChange = {
-                                    password = it
-                                    vm.clearBanners()
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(50.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                visualTransformation = if (showPassword) {
-                                    VisualTransformation.None
-                                } else {
-                                    PasswordVisualTransformation()
-                                },
-                                placeholder = { Text("••••••••", color = MutedText) },
-                                trailingIcon = {
-                                    TextButton(onClick = { showPassword = !showPassword }) {
-                                        Text(
-                                            text = if (showPassword) "OCULTAR" else "MOSTRAR",
-                                            color = BlueLine,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedContainerColor = FieldBg,
-                                    focusedContainerColor = FieldBg,
-                                    unfocusedBorderColor = Color.Transparent,
-                                    focusedBorderColor = BlueLine
-                                )
-                            )
-                        }
+                    LoginPasswordField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            vm.clearBanners()
+                            manualCaptchaError = null
+                        },
+                        showPassword = showPassword,
+                        onTogglePassword = { showPassword = !showPassword }
+                    )
 
+                    if (manualCaptchaRequired) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            color = CaptchaBg
+                            shape = RoundedCornerShape(18.dp),
+                            color = LoginCaptcha
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                Text(
+                                    text = "Completa la verificación de seguridad",
+                                    color = LoginPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF4A5568)),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .height(with(density) { captchaHeightPx.toDp() })
                                 ) {
-                                    Text("✓", color = Color.White, fontSize = 14.sp)
+                                    RecaptchaWidget(
+                                        modifier = Modifier.fillMaxSize(),
+                                        reloadNonce = reloadNonce,
+                                        onTokenReceived = {
+                                            manualCaptchaToken = it
+                                            manualCaptchaError = null
+                                        },
+                                        onExpired = {
+                                            manualCaptchaToken = ""
+                                            manualCaptchaError = "La verificación expiró. Vuelve a completarla."
+                                        },
+                                        onError = {
+                                            manualCaptchaToken = ""
+                                            manualCaptchaError = it
+                                        },
+                                        onHeightChanged = { height ->
+                                            captchaHeightPx = height.coerceIn(90, 420)
+                                        }
+                                    )
                                 }
-
-                                Column {
+                                if (manualCaptchaToken.isNotBlank()) {
                                     Text(
-                                        text = "Verificación de seguridad automática",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = primaryText,
+                                        text = "Verificación completada",
+                                        color = LoginSuccess,
+                                        style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold
                                     )
+                                }
+
+                                manualCaptchaError?.let {
                                     Text(
-                                        text = "Se ejecuta al presionar Ingresar",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = secondaryText
+                                        text = it,
+                                        color = Color(0xFFD93025),
+                                        style = MaterialTheme.typography.bodySmall
                                     )
                                 }
-                            }
-                        }
 
-                        state.error?.takeIf { it.isNotBlank() }?.let { ErrorBanner(it) }
-                        state.info?.takeIf { it.isNotBlank() }?.let { InfoBanner(it) }
-
-                        Button(
-                            onClick = { vm.login(email.trim(), password) },
-                            enabled = email.isNotBlank() && password.isNotBlank() && !state.loading && !state.loadingGoogle,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(54.dp),
-                            shape = RoundedCornerShape(50.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = NavyDark,
-                                contentColor = SurfaceWhite,
-                                disabledContainerColor = NavyDark.copy(alpha = 0.45f),
-                                disabledContentColor = SurfaceWhite.copy(alpha = 0.55f)
-                            )
-                        ) {
-                            if (state.loading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = SurfaceWhite
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text(
-                                text = if (state.loading) "Ingresando..." else "Ingresar",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val activity = context as? Activity
-                                if (activity == null) {
-                                    vm.cancelGoogleLogin("No fue posible abrir el selector de Google en este contexto")
-                                } else {
-                                    vm.startGoogleLoginFlow()
-                                    scope.launch {
-                                        googleSignInManager.requestGoogleIdToken(activity)
-                                            .onSuccess { vm.loginWithGoogle(it) }
-                                            .onFailure { vm.cancelGoogleLogin(googleSignInManager.toUserMessage(it)) }
-                                    }
-                                }
-                            },
-                            enabled = !state.loading && !state.loadingGoogle,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(54.dp),
-                            shape = RoundedCornerShape(50.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = SurfaceWhite,
-                                contentColor = Color(0xFF1F2937)
-                            )
-                        ) {
-                            if (state.loadingGoogle) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color(0xFF4285F4)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Conectando con Google...",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFFF5F5F5)),
-                                    contentAlignment = Alignment.Center
+                                TextButton(
+                                    onClick = {
+                                        manualCaptchaToken = ""
+                                        manualCaptchaError = null
+                                        reloadNonce += 1
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
                                 ) {
-                                    Text(
-                                        "G",
-                                        color = Color(0xFF4285F4),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
+                                    Text("Recargar verificación", color = LoginAccent)
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    "Continuar con Google",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
                             }
                         }
-
-                        TextButton(
-                            onClick = { vm.forgotPassword(email.trim()) },
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        ) {
-                            Text(
-                                text = if (state.loadingForgot) "Enviando..." else "¿Olvidaste tu contraseña?",
-                                color = BlueLine,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-
-                        Row(
+                    } else {
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                            shape = RoundedCornerShape(18.dp),
+                            color = LoginCaptcha
                         ) {
-                            Text(
-                                "¿No tienes cuenta? ",
-                                color = secondaryText,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            TextButton(onClick = onRegister, contentPadding = PaddingValues(0.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
-                                    "Regístrate",
-                                    color = primaryText,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Verificación de seguridad automática",
+                                    color = LoginPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "Se ejecuta al presionar Ingresar. Si hay intentos fallidos, se activará el desafío manual.",
+                                    color = MutedText,
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
                     }
+
+                    state.error?.takeIf { it.isNotBlank() }?.let { ErrorBanner(it) }
+                    state.info?.takeIf { it.isNotBlank() }?.let { InfoBanner(it) }
+
+                    Button(
+                        onClick = {
+                            vm.clearBanners()
+                            if (manualCaptchaRequired) {
+                                if (manualCaptchaToken.isBlank()) {
+                                    manualCaptchaError = "Completa la verificación antes de continuar."
+                                } else {
+                                    lastAttemptWasAutomatic = false
+                                    vm.login(
+                                        email = email.trim(),
+                                        password = password,
+                                        captchaToken = manualCaptchaToken,
+                                        captchaClient = "WEB"
+                                    )
+                                }
+                            } else {
+                                lastAttemptWasAutomatic = true
+                                vm.login(email.trim(), password)
+                            }
+                        },
+                        enabled = email.isNotBlank() && password.isNotBlank() && !state.loading && !state.loadingGoogle,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LoginPrimary,
+                            contentColor = Color.White,
+                            disabledContainerColor = LoginPrimary.copy(alpha = 0.35f),
+                            disabledContentColor = Color.White.copy(alpha = 0.55f)
+                        )
+                    ) {
+                        if (state.loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+
+                        Text(
+                            text = if (state.loading) "Ingresando..." else "Ingresar",
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val activity = context as? Activity
+                            if (activity == null) {
+                                vm.cancelGoogleLogin("No fue posible abrir el selector de Google en este contexto")
+                            } else {
+                                vm.startGoogleLoginFlow()
+                                scope.launch {
+                                    googleSignInManager.requestGoogleIdToken(activity)
+                                        .onSuccess { vm.loginWithGoogle(it) }
+                                        .onFailure { vm.cancelGoogleLogin(googleSignInManager.toUserMessage(it)) }
+                                }
+                            }
+                        },
+                        enabled = !state.loading && !state.loadingGoogle,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(50.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = SurfaceWhite,
+                            contentColor = LoginPrimary
+                        )
+                    ) {
+                        if (state.loadingGoogle) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = LoginAccent,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Conectando con Google...")
+                        } else {
+                            Text("G", color = LoginAccent, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Continuar con Google", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    TextButton(
+                        onClick = { vm.forgotPassword(email.trim()) },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = if (state.loadingForgot) "Enviando..." else "¿Olvidaste tu contraseña?",
+                            color = LoginAccent
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("¿No tienes cuenta? ", color = MutedText)
+                        TextButton(onClick = onRegister, contentPadding = PaddingValues(0.dp)) {
+                            Text("Regístrate", color = LoginPrimary, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(90.dp))
             }
 
-            FloatingActionButton(
-                onClick = { showAccessibilitySheet = true },
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(18.dp),
-                containerColor = SecondaryBlue,
-                shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) {
-                Text("♿", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
-            }
-
-            FloatingActionButton(
-                onClick = { showSupportSheet = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(18.dp),
-                containerColor = Color(0xFF2ECC71),
-                shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) {
-                Text("💬", color = SurfaceWhite, style = MaterialTheme.typography.titleMedium)
-            }
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun LoginAccessibilitySheet(
-    fontScale: Float,
-    highContrast: Boolean,
-    onIncrease: () -> Unit,
-    onDecrease: () -> Unit,
-    onToggleHighContrast: () -> Unit,
-    onReset: () -> Unit
+private fun LoginField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            "Accesibilidad",
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.headlineSmall,
-            color = PrimaryBlue,
-            textAlign = TextAlign.Center
+            text = label,
+            color = LoginPrimary,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 0.8.sp
         )
-        OutlinedButton(onClick = onIncrease, modifier = Modifier.fillMaxWidth()) {
-            Text("Aumentar texto")
-        }
-        OutlinedButton(onClick = onDecrease, modifier = Modifier.fillMaxWidth()) {
-            Text("Disminuir texto")
-        }
-        Row(
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Contraste alto")
-            Switch(checked = highContrast, onCheckedChange = { onToggleHighContrast() })
-        }
-        Text("Escala actual: ${"%.1f".format(fontScale)}x", color = MutedText)
-        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
-            Text("Restablecer")
-        }
+            singleLine = true,
+            shape = RoundedCornerShape(50.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            placeholder = {
+                Text(
+                    text = placeholder,
+                    color = MutedText.copy(alpha = 0.75f)
+                )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = LoginField,
+                unfocusedContainerColor = LoginField,
+                focusedBorderColor = LoginAccent,
+                unfocusedBorderColor = Color.Transparent,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                cursorColor = LoginAccent
+            )
+        )
     }
 }
 
 @Composable
-private fun LoginSupportSheet(
-    onWhatsApp: () -> Unit,
-    onCall: () -> Unit,
-    onEmail: () -> Unit
+private fun LoginPasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    showPassword: Boolean,
+    onTogglePassword: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            "Canales de comunicación",
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.headlineSmall,
-            color = PrimaryBlue,
-            textAlign = TextAlign.Center
+            text = "CONTRASEÑA",
+            color = LoginPrimary,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 0.8.sp
         )
-        OutlinedButton(onClick = onWhatsApp, modifier = Modifier.fillMaxWidth()) {
-            Text("WhatsApp")
-        }
-        OutlinedButton(onClick = onCall, modifier = Modifier.fillMaxWidth()) {
-            Text("Llamar")
-        }
-        OutlinedButton(onClick = onEmail, modifier = Modifier.fillMaxWidth()) {
-            Text("Correo")
-        }
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(50.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            placeholder = {
+                Text("••••••••", color = MutedText.copy(alpha = 0.75f))
+            },
+            trailingIcon = {
+                TextButton(onClick = onTogglePassword) {
+                    Text(
+                        text = if (showPassword) "OCULTAR" else "MOSTRAR",
+                        color = LoginAccent,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = LoginField,
+                unfocusedContainerColor = LoginField,
+                focusedBorderColor = LoginAccent,
+                unfocusedBorderColor = Color.Transparent,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                cursorColor = LoginAccent
+            )
+        )
     }
 }

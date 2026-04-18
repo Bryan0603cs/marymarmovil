@@ -61,7 +61,12 @@ class AuthViewModel @Inject constructor(
         )
     }
 
-    fun login(email: String, password: String) {
+    fun login(
+        email: String,
+        password: String,
+        captchaToken: String? = null,
+        captchaClient: String = "ANDROID"
+    ) {
         val cleanEmail = email.trim()
 
         if (cleanEmail.isBlank() || password.isBlank()) {
@@ -77,16 +82,28 @@ class AuthViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            val captchaToken = nativeRecaptchaManager.execute(AuthAction.LOGIN)
-                .getOrElse { throwable ->
-                    _ui.value = _ui.value.copy(
-                        loading = false,
-                        error = recaptchaErrorMessage(throwable)
-                    )
-                    return@launch
-                }
+            val resolvedCaptchaToken = if (!captchaToken.isNullOrBlank()) {
+                captchaToken
+            } else {
+                nativeRecaptchaManager.execute(AuthAction.LOGIN)
+                    .getOrElse { throwable ->
+                        _ui.value = _ui.value.copy(
+                            loading = false,
+                            error = recaptchaErrorMessage(throwable)
+                        )
+                        return@launch
+                    }
+            }
 
-            when (val res = loginUseCase(cleanEmail, password, captchaToken, AuthAction.LOGIN)) {
+            when (
+                val res = loginUseCase(
+                    email = cleanEmail,
+                    password = password,
+                    captchaToken = resolvedCaptchaToken,
+                    captchaAction = AuthAction.LOGIN,
+                    captchaClient = captchaClient
+                )
+            ) {
                 is ApiResult.Success -> {
                     val step = res.data
                     _ui.value = _ui.value.copy(
@@ -288,10 +305,17 @@ class AuthViewModel @Inject constructor(
         phone: String,
         birthDateIso: String,
         role: Role,
-        aceptaHabeasData: Boolean
+        aceptaHabeasData: Boolean,
+        captchaToken: String,
+        captchaClient: String = "WEB"
     ) {
         if (!aceptaHabeasData) {
             _ui.value = _ui.value.copy(error = "Debes aceptar la Política de Tratamiento de Datos")
+            return
+        }
+
+        if (captchaToken.isBlank()) {
+            _ui.value = _ui.value.copy(error = "Completa la verificación de seguridad")
             return
         }
 
@@ -303,15 +327,6 @@ class AuthViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            val captchaToken = nativeRecaptchaManager.execute(AuthAction.REGISTER)
-                .getOrElse { throwable ->
-                    _ui.value = _ui.value.copy(
-                        loading = false,
-                        error = recaptchaErrorMessage(throwable)
-                    )
-                    return@launch
-                }
-
             when (
                 val res = registerUseCase(
                     idNumber = idNumber,
@@ -323,7 +338,8 @@ class AuthViewModel @Inject constructor(
                     role = role,
                     aceptaHabeasData = aceptaHabeasData,
                     captchaToken = captchaToken,
-                    captchaAction = AuthAction.REGISTER
+                    captchaAction = AuthAction.REGISTER,
+                    captchaClient = captchaClient
                 )
             ) {
                 is ApiResult.Success -> {

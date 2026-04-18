@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.graphics.Color as AndroidColor
 import android.os.Handler
 import android.os.Looper
-import android.view.MotionEvent
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -28,380 +27,214 @@ fun RecaptchaWidget(
     onHeightChanged: (Int) -> Unit = {}
 ) {
     key(reloadNonce) {
-        InternalRecaptchaWebView(
+        AndroidView(
             modifier = modifier,
-            siteKey = RECAPTCHA_SITE_KEY,
-            onTokenReceived = onTokenReceived,
-            onExpired = onExpired,
-            onError = onError,
-            onHeightChanged = onHeightChanged
+            factory = { context ->
+                WebView(context).apply {
+                    setupRecaptchaWebView(
+                        onTokenReceived = onTokenReceived,
+                        onExpired = onExpired,
+                        onError = onError,
+                        onHeightChanged = onHeightChanged
+                    )
+                }
+            },
+            update = { webView ->
+                webView.loadUrl("javascript:window.__syncHeight && window.__syncHeight();")
+            },
+            onRelease = { webView ->
+                webView.stopLoading()
+                webView.loadUrl("about:blank")
+                webView.removeAllViews()
+                webView.destroy()
+            }
         )
     }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun InternalRecaptchaWebView(
-    modifier: Modifier,
-    siteKey: String,
+private fun WebView.setupRecaptchaWebView(
     onTokenReceived: (String) -> Unit,
     onExpired: () -> Unit,
     onError: (String) -> Unit,
     onHeightChanged: (Int) -> Unit
 ) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            val handler = Handler(Looper.getMainLooper())
+    setBackgroundColor(AndroidColor.TRANSPARENT)
+    overScrollMode = WebView.OVER_SCROLL_NEVER
+    isVerticalScrollBarEnabled = false
+    isHorizontalScrollBarEnabled = false
 
-            WebView(context).apply {
-                setBackgroundColor(AndroidColor.TRANSPARENT)
-                webChromeClient = WebChromeClient()
-                webViewClient = WebViewClient()
+    settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
+    settings.databaseEnabled = true
+    settings.loadsImagesAutomatically = true
+    settings.allowFileAccess = false
+    settings.allowContentAccess = false
+    settings.cacheMode = WebSettings.LOAD_NO_CACHE
+    settings.useWideViewPort = true
+    settings.loadWithOverviewMode = true
+    settings.displayZoomControls = false
+    settings.builtInZoomControls = false
+    settings.setSupportZoom(false)
+    settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
 
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.loadsImagesAutomatically = true
-                settings.cacheMode = WebSettings.LOAD_NO_CACHE
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
-                settings.builtInZoomControls = false
-                settings.displayZoomControls = false
-                settings.setSupportZoom(false)
-                settings.useWideViewPort = false
-                settings.loadWithOverviewMode = false
+    addJavascriptInterface(
+        RecaptchaBridge(
+            onTokenReceived = onTokenReceived,
+            onExpired = onExpired,
+            onError = onError,
+            onHeightChanged = onHeightChanged
+        ),
+        "AndroidBridge"
+    )
 
-                isFocusable = true
-                isFocusableInTouchMode = true
-                isClickable = true
-                isLongClickable = false
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
-                overScrollMode = WebView.OVER_SCROLL_NEVER
+    webChromeClient = WebChromeClient()
 
-                setOnTouchListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_DOWN || event.action == MotionEvent.ACTION_UP) {
-                        parent?.requestDisallowInterceptTouchEvent(true)
-                        requestFocus()
-                        post {
-                            loadUrl("javascript:window.onHostTouch && window.onHostTouch();")
-                        }
-                    }
-                    false
-                }
-
-                addJavascriptInterface(
-                    object {
-                        @JavascriptInterface
-                        fun onCaptchaSuccess(token: String) {
-                            handler.post { onTokenReceived(token) }
-                        }
-
-                        @JavascriptInterface
-                        fun onCaptchaExpired() {
-                            handler.post { onExpired() }
-                        }
-
-                        @JavascriptInterface
-                        fun onCaptchaError(message: String?) {
-                            handler.post {
-                                onError(message ?: "No fue posible cargar el captcha")
-                            }
-                        }
-
-                        @JavascriptInterface
-                        fun onHeightChanged(height: Int) {
-                            handler.post { onHeightChanged(height) }
-                        }
-                    },
-                    "AndroidBridge"
-                )
-
-                loadDataWithBaseURL(
-                    RECAPTCHA_BASE_URL,
-                    buildRecaptchaHtml(siteKey),
-                    "text/html",
-                    "utf-8",
-                    null
-                )
-            }
-        },
-        onRelease = { webView ->
-            webView.stopLoading()
-            webView.loadUrl("about:blank")
-            webView.removeAllViews()
-            webView.destroy()
+    webViewClient = object : WebViewClient() {
+        override fun onPageFinished(view: WebView?, url: String?) {
+            super.onPageFinished(view, url)
+            postDelayed({ evaluateJavascript("window.__syncHeight && window.__syncHeight();", null) }, 250)
+            postDelayed({ evaluateJavascript("window.__syncHeight && window.__syncHeight();", null) }, 900)
         }
+    }
+
+    loadDataWithBaseURL(
+        RECAPTCHA_BASE_URL,
+        buildRecaptchaHtml(RECAPTCHA_SITE_KEY),
+        "text/html",
+        "utf-8",
+        null
     )
 }
 
-private fun buildRecaptchaHtml(siteKey: String): String {
-    return """
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="utf-8"/>
-            <meta
-                name="viewport"
-                content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-            />
+private fun buildRecaptchaHtml(siteKey: String): String = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <script
+    src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit"
+    async
+    defer
+  ></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background: transparent;
+      overflow: hidden;
+    }
 
-            <script>
-                let widgetRendered = false;
-                let lastReportedHeight = 0;
-                let interactionLockUntil = 0;
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
 
-                function reportHeight(value) {
-                    const safeHeight = Math.ceil(value);
-                    if (Math.abs(safeHeight - lastReportedHeight) > 2) {
-                        lastReportedHeight = safeHeight;
-                        AndroidBridge.onHeightChanged(safeHeight);
-                    }
-                }
+    #outer {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow: hidden;
+    }
 
-                function visibleFrames() {
-                    return Array.from(document.querySelectorAll('iframe')).filter(frame => {
-                        const rect = frame.getBoundingClientRect();
-                        const style = window.getComputedStyle(frame);
-                        return rect.width > 0 &&
-                               rect.height > 0 &&
-                               style.display !== 'none' &&
-                               style.visibility !== 'hidden' &&
-                               style.opacity !== '0';
-                    });
-                }
+    #recaptcha-container {
+      min-height: 78px;
+    }
+  </style>
+</head>
+<body>
+  <div id="outer">
+    <div id="recaptcha-container"></div>
+  </div>
 
-                function challengeFrame() {
-                    const frames = visibleFrames();
+  <script>
+    let widgetId = null;
 
-                    return frames
-                        .slice()
-                        .sort((a, b) => {
-                            const ra = a.getBoundingClientRect();
-                            const rb = b.getBoundingClientRect();
-                            return (rb.width * rb.height) - (ra.width * ra.height);
-                        })
-                        .find(frame => {
-                            const rect = frame.getBoundingClientRect();
-                            const title = (frame.getAttribute('title') || '').toLowerCase();
-                            return title.includes('challenge') ||
-                                   title.includes('desaf') ||
-                                   rect.height >= 280 ||
-                                   rect.width >= 320;
-                        }) || null;
-                }
+    function reportHeight(px) {
+      if (window.AndroidBridge && Number.isFinite(px)) {
+        window.AndroidBridge.onHeightChanged(String(Math.ceil(px)));
+      }
+    }
 
-                function fitCollapsed() {
-                    const wrapper = document.getElementById('captcha-wrapper');
-                    const anchorShell = document.getElementById('captcha-anchor-shell');
-                    if (!wrapper || !anchorShell) return;
+    function syncHeight() {
+      const outer = document.getElementById('outer');
+      const rect = outer.getBoundingClientRect();
+      let h = rect && rect.height ? rect.height : 82;
 
-                    const availableWidth = Math.max(wrapper.clientWidth - 6, 1);
-                    const scale = Math.min(1, availableWidth / 304);
-                    const collapsedHeight = Math.max(Math.ceil((78 * scale) + 10), 88);
+      if (!h || h < 78) h = 82;
 
-                    anchorShell.style.transform = 'scale(' + scale + ')';
-                    anchorShell.style.transformOrigin = 'top center';
-                    anchorShell.style.width = '304px';
+      reportHeight(h + 4);
+    }
 
-                    visibleFrames().forEach(frame => {
-                        frame.style.transform = '';
-                        frame.style.transformOrigin = '';
-                        frame.style.margin = '';
-                        frame.style.display = '';
-                    });
+    function onloadCallback() {
+      if (typeof grecaptcha === 'undefined') {
+        setTimeout(onloadCallback, 250);
+        return;
+      }
 
-                    wrapper.style.minHeight = collapsedHeight + 'px';
-                    reportHeight(collapsedHeight);
-                }
+      widgetId = grecaptcha.render('recaptcha-container', {
+        sitekey: '$siteKey',
+        theme: 'light',
+        callback: function(token) {
+          syncHeight();
+          if (window.AndroidBridge) window.AndroidBridge.onToken(token);
+        },
+        'expired-callback': function() {
+          syncHeight();
+          if (window.AndroidBridge) window.AndroidBridge.onExpired();
+        },
+        'error-callback': function() {
+          syncHeight();
+          if (window.AndroidBridge) {
+            window.AndroidBridge.onError('No fue posible cargar el reCAPTCHA');
+          }
+        }
+      });
 
-                function fitWaitingChallenge() {
-                    const wrapper = document.getElementById('captcha-wrapper');
-                    if (!wrapper) return;
+      setTimeout(syncHeight, 250);
+      setTimeout(syncHeight, 900);
+      setInterval(syncHeight, 700);
+    }
 
-                    wrapper.style.minHeight = '430px';
-                    reportHeight(430);
-                }
+    window.__syncHeight = syncHeight;
+  </script>
+</body>
+</html>
+""".trimIndent()
 
-                function fitExpanded(frame) {
-                    const wrapper = document.getElementById('captcha-wrapper');
-                    if (!wrapper || !frame) return;
+private class RecaptchaBridge(
+    private val onTokenReceived: (String) -> Unit,
+    private val onExpired: () -> Unit,
+    private val onError: (String) -> Unit,
+    private val onHeightChanged: (Int) -> Unit
+) {
+    private val mainHandler = Handler(Looper.getMainLooper())
 
-                    const rect = frame.getBoundingClientRect();
-                    const rawWidth = Math.max(frame.offsetWidth || 0, rect.width || 0, 320);
-                    const rawHeight = Math.max(frame.offsetHeight || 0, rect.height || 0, 420);
-                    const availableWidth = Math.max(wrapper.clientWidth - 10, 1);
-                    const scale = Math.min(1, availableWidth / rawWidth);
-                    const expandedHeight = Math.ceil((rawHeight * scale) + 20);
+    @JavascriptInterface
+    fun onToken(token: String) {
+        mainHandler.post { onTokenReceived(token) }
+    }
 
-                    frame.style.transform = 'scale(' + scale + ')';
-                    frame.style.transformOrigin = 'top center';
-                    frame.style.margin = '0 auto';
-                    frame.style.display = 'block';
+    @JavascriptInterface
+    fun onExpired() {
+        mainHandler.post { onExpired() }
+    }
 
-                    wrapper.style.minHeight = expandedHeight + 'px';
-                    reportHeight(expandedHeight);
-                }
+    @JavascriptInterface
+    fun onError(message: String) {
+        mainHandler.post { onError(message) }
+    }
 
-                function adjustLayout() {
-                    const openChallenge = challengeFrame();
-
-                    if (openChallenge) {
-                        fitExpanded(openChallenge);
-                        return;
-                    }
-
-                    const now = Date.now();
-                    if (now < interactionLockUntil) {
-                        fitWaitingChallenge();
-                        return;
-                    }
-
-                    fitCollapsed();
-                }
-
-                function onCaptchaSuccess(token) {
-                    interactionLockUntil = 0;
-                    AndroidBridge.onCaptchaSuccess(token);
-                    setTimeout(adjustLayout, 80);
-                    setTimeout(adjustLayout, 220);
-                }
-
-                function onCaptchaExpired() {
-                    interactionLockUntil = 0;
-                    AndroidBridge.onCaptchaExpired();
-                    setTimeout(adjustLayout, 80);
-                    setTimeout(adjustLayout, 220);
-                }
-
-                function onCaptchaError(message) {
-                    interactionLockUntil = 0;
-                    AndroidBridge.onCaptchaError(message || 'Error al cargar reCAPTCHA');
-                    setTimeout(adjustLayout, 80);
-                    setTimeout(adjustLayout, 220);
-                }
-
-                function renderRecaptcha() {
-                    if (widgetRendered || typeof grecaptcha === 'undefined') {
-                        adjustLayout();
-                        return;
-                    }
-
-                    try {
-                        grecaptcha.render('captcha-anchor', {
-                            sitekey: '$siteKey',
-                            theme: 'light',
-                            size: 'normal',
-                            callback: onCaptchaSuccess,
-                            'expired-callback': onCaptchaExpired,
-                            'error-callback': function() {
-                                onCaptchaError('No fue posible cargar reCAPTCHA');
-                            }
-                        });
-
-                        widgetRendered = true;
-                        setTimeout(adjustLayout, 120);
-                        setTimeout(adjustLayout, 260);
-                    } catch (error) {
-                        onCaptchaError(
-                            error && error.message
-                                ? error.message
-                                : 'No fue posible inicializar el captcha'
-                        );
-                    }
-                }
-
-                function onRecaptchaLoaded() {
-                    renderRecaptcha();
-                }
-
-                window.onHostTouch = function() {
-                    interactionLockUntil = Date.now() + 1400;
-                    setTimeout(adjustLayout, 20);
-                    setTimeout(adjustLayout, 160);
-                    setTimeout(adjustLayout, 420);
-                };
-
-                window.addEventListener('resize', function() {
-                    setTimeout(adjustLayout, 80);
-                    setTimeout(adjustLayout, 220);
-                });
-
-                document.addEventListener('DOMContentLoaded', function() {
-                    const observer = new MutationObserver(function() {
-                        setTimeout(adjustLayout, 50);
-                        setTimeout(adjustLayout, 180);
-                        setTimeout(adjustLayout, 320);
-                    });
-
-                    observer.observe(document.documentElement, {
-                        childList: true,
-                        subtree: true,
-                        attributes: true
-                    });
-
-                    setTimeout(adjustLayout, 60);
-                    setInterval(adjustLayout, 500);
-                });
-            </script>
-
-            <script
-                src="https://www.google.com/recaptcha/api.js?hl=es&onload=onRecaptchaLoaded&render=explicit"
-                async
-                defer>
-            </script>
-
-            <style>
-                * {
-                    box-sizing: border-box;
-                }
-
-                html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    background: transparent;
-                    overflow-x: hidden;
-                    overflow-y: visible;
-                    font-family: Arial, sans-serif;
-                }
-
-                body {
-                    display: flex;
-                    justify-content: center;
-                    align-items: flex-start;
-                    min-height: 88px;
-                }
-
-                #captcha-wrapper {
-                    width: 100%;
-                    min-height: 88px;
-                    display: flex;
-                    justify-content: center;
-                    align-items: flex-start;
-                    overflow: visible;
-                    padding: 2px 0;
-                }
-
-                #captcha-anchor-shell {
-                    width: 304px;
-                    max-width: 304px;
-                    transform-origin: top center;
-                }
-
-                #captcha-anchor {
-                    width: 304px;
-                }
-            </style>
-        </head>
-
-        <body>
-            <div id="captcha-wrapper">
-                <div id="captcha-anchor-shell">
-                    <div id="captcha-anchor"></div>
-                </div>
-            </div>
-        </body>
-        </html>
-    """.trimIndent()
+    @JavascriptInterface
+    fun onHeightChanged(height: String) {
+        val parsed = height.toIntOrNull() ?: return
+        mainHandler.post { onHeightChanged(parsed) }
+    }
 }

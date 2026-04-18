@@ -15,14 +15,16 @@ interface AuthRepository {
         role: Role,
         aceptaHabeasData: Boolean,
         captchaToken: String,
-        captchaAction: String
+        captchaAction: String,
+        captchaClient: String = "WEB"
     ): ApiResult<Session>
 
     suspend fun login(
         email: String,
         password: String,
         captchaToken: String,
-        captchaAction: String
+        captchaAction: String,
+        captchaClient: String = "ANDROID"
     ): ApiResult<LoginStep>
 
     suspend fun loginWithGoogle(
