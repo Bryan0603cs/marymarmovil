@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.marymar.mobile.domain.model.Role
 
@@ -36,14 +36,20 @@ fun BottomNavBar(
     val items = when (role) {
         Role.MESERO -> listOf(
             Triple(Routes.Tables, "Mesas", "▦"),
-            Triple(Routes.Orders, "Pedidos", "≣"),
-            Triple(Routes.Profile, "Perfil", "•")
+            Triple(Routes.Orders, "Pedidos", "▤"),
+            Triple(Routes.Profile, "Perfil", "⚙")
         )
+
+        Role.COCINERO -> listOf(
+            Triple(Routes.Kitchen, "Cocina", "☰"),
+            Triple(Routes.Profile, "Perfil", "⚙")
+        )
+
         else -> listOf(
             Triple(Routes.Products, "Menú", "✕"),
             Triple(Routes.Cart, "Carrito", "🛒"),
             Triple(Routes.Orders, "Pedidos", "▤"),
-            Triple(Routes.Profile, "Perfil", "•")
+            Triple(Routes.Profile, "Perfil", "⚙")
         )
     }
 
@@ -52,14 +58,14 @@ fun BottomNavBar(
         color = NavBg,
         shadowElevation = 10.dp,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { (destination, label, symbol) ->
@@ -82,20 +88,20 @@ fun BottomNavBar(
                     tonalElevation = 0.dp
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = symbol,
-                            fontSize = 15.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (selected) NavBg else NavMuted
                         )
                         Text(
                             text = label,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = if (selected) NavBg else NavMuted
                         )
                     }

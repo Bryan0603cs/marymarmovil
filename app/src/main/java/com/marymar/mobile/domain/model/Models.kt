@@ -8,7 +8,12 @@ data class Session(
     val role: Role
 )
 
-enum class Role { CLIENTE, MESERO, ADMINISTRADOR }
+enum class Role {
+    CLIENTE,
+    MESERO,
+    COCINERO,
+    ADMINISTRADOR
+}
 
 data class Product(
     val id: Long,

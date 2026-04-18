@@ -14,13 +14,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -31,10 +26,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.marymar.mobile.core.auth.GoogleSignInManager
 import com.marymar.mobile.core.network.TokenProvider
@@ -43,25 +35,8 @@ import com.marymar.mobile.core.storage.SessionStore
 import com.marymar.mobile.domain.model.Role
 import com.marymar.mobile.presentation.navigation.BottomNavBar
 import com.marymar.mobile.presentation.navigation.Routes
-import com.marymar.mobile.presentation.screens.ActiveTableOrderScreen
-import com.marymar.mobile.presentation.screens.CartScreen
-import com.marymar.mobile.presentation.screens.CodeScreen
-import com.marymar.mobile.presentation.screens.LoginScreen
-import com.marymar.mobile.presentation.screens.OrderDetailScreen
-import com.marymar.mobile.presentation.screens.OrdersScreen
-import com.marymar.mobile.presentation.screens.ProductListScreen
-import com.marymar.mobile.presentation.screens.ProfileScreen
-import com.marymar.mobile.presentation.screens.RegisterScreen
-import com.marymar.mobile.presentation.screens.TablesScreen
-import com.marymar.mobile.presentation.viewmodel.ActiveTableOrderViewModel
-import com.marymar.mobile.presentation.viewmodel.AuthNext
-import com.marymar.mobile.presentation.viewmodel.AuthViewModel
-import com.marymar.mobile.presentation.viewmodel.CartViewModel
-import com.marymar.mobile.presentation.viewmodel.OrderDetailViewModel
-import com.marymar.mobile.presentation.viewmodel.OrdersViewModel
-import com.marymar.mobile.presentation.viewmodel.ProductsViewModel
-import com.marymar.mobile.presentation.viewmodel.SessionViewModel
-import com.marymar.mobile.presentation.viewmodel.TablesViewModel
+import com.marymar.mobile.presentation.screens.*
+import com.marymar.mobile.presentation.viewmodel.*
 import com.marymar.mobile.ui.components.AccessibilityFloatingControls
 import com.marymar.mobile.ui.theme.MarymarTheme
 import com.marymar.mobile.ui.theme.MutedText
@@ -73,14 +48,9 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var sessionStore: SessionStore
-
-    @Inject
-    lateinit var tokenProvider: TokenProvider
-
-    @Inject
-    lateinit var googleSignInManager: GoogleSignInManager
+    @Inject lateinit var sessionStore: SessionStore
+    @Inject lateinit var tokenProvider: TokenProvider
+    @Inject lateinit var googleSignInManager: GoogleSignInManager
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -167,24 +137,29 @@ class MainActivity : ComponentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Scaffold(
                         topBar = {
-                            if (isLoggedIn && !isAuthRoute && currentRoute != Routes.Products) {
+                            if (
+                                isLoggedIn &&
+                                !isAuthRoute &&
+                                currentRoute != Routes.Products &&
+                                currentRoute != Routes.Kitchen
+                            ) {
                                 CenterAlignedTopAppBar(
                                     title = {
                                         Column {
                                             Text(
-                                                text = if (sessionRole == Role.MESERO) {
-                                                    "Mar y Mar · Meseros"
-                                                } else {
-                                                    "Mar y Mar"
+                                                text = when (sessionRole) {
+                                                    Role.MESERO -> "Mar y Mar · Mesero"
+                                                    Role.COCINERO -> "Mar y Mar · Cocina"
+                                                    else -> "Mar y Mar"
                                                 },
                                                 style = MaterialTheme.typography.headlineSmall,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Text(
-                                                text = if (sessionRole == Role.MESERO) {
-                                                    "Pedidos por mesa e inventario"
-                                                } else {
-                                                    "Domicilios y seguimiento del pedido"
+                                                text = when (sessionRole) {
+                                                    Role.MESERO -> "Mesas, pedido activo y documentos"
+                                                    Role.COCINERO -> "Cola de pedidos y preparación"
+                                                    else -> "Seguimiento del pedido"
                                                 },
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MutedText
@@ -218,9 +193,7 @@ class MainActivity : ComponentActivity() {
                                             vm.consumeNext()
                                             nav.navigate("${Routes.Code}?email=${next.email}")
                                         }
-                                        AuthNext.LoggedIn -> {
-                                            vm.consumeNext()
-                                        }
+                                        AuthNext.LoggedIn -> vm.consumeNext()
                                         null -> Unit
                                     }
                                 }
@@ -229,26 +202,13 @@ class MainActivity : ComponentActivity() {
                                     vm = vm,
                                     googleSignInManager = googleSignInManager,
                                     onRegister = { nav.navigate(Routes.Register) },
-                                    onGoToCode = { email ->
-                                        nav.navigate("${Routes.Code}?email=$email")
-                                    }
+                                    onGoToCode = { email -> nav.navigate("${Routes.Code}?email=$email") }
                                 )
                             }
 
                             composable(Routes.Register) {
                                 val vm: AuthViewModel = hiltViewModel()
-                                val authState by vm.ui.collectAsStateWithLifecycle()
-
-                                LaunchedEffect(authState.next) {
-                                    if (authState.next == AuthNext.LoggedIn) {
-                                        vm.consumeNext()
-                                    }
-                                }
-
-                                RegisterScreen(
-                                    vm = vm,
-                                    onBack = { nav.popBackStack() }
-                                )
+                                RegisterScreen(vm = vm, onBack = { nav.popBackStack() })
                             }
 
                             composable(
@@ -257,19 +217,7 @@ class MainActivity : ComponentActivity() {
                             ) { backStack ->
                                 val email = backStack.arguments?.getString("email") ?: ""
                                 val vm: AuthViewModel = hiltViewModel()
-                                val authState by vm.ui.collectAsStateWithLifecycle()
-
-                                LaunchedEffect(authState.next) {
-                                    if (authState.next == AuthNext.LoggedIn) {
-                                        vm.consumeNext()
-                                    }
-                                }
-
-                                CodeScreen(
-                                    vm = vm,
-                                    email = email,
-                                    onBack = { nav.popBackStack() }
-                                )
+                                CodeScreen(vm = vm, email = email, onBack = { nav.popBackStack() })
                             }
 
                             composable(Routes.Products) {
@@ -314,6 +262,11 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            composable(Routes.Kitchen) {
+                                val vm: KitchenOrdersViewModel = hiltViewModel()
+                                KitchenOrdersScreen(vm = vm)
+                            }
+
                             composable(
                                 route = "${Routes.ActiveTableOrder}/{mesaId}/{mesaNumero}",
                                 arguments = listOf(
@@ -329,7 +282,8 @@ class MainActivity : ComponentActivity() {
                                     vm = vm,
                                     mesaId = mesaId,
                                     mesaNumero = mesaNumero,
-                                    meseroId = session.userId ?: 0L
+                                    meseroId = session.userId ?: 0L,
+                                    authToken = session.token.orEmpty()
                                 )
                             }
 
@@ -339,11 +293,7 @@ class MainActivity : ComponentActivity() {
                             ) { backStack ->
                                 val orderId = backStack.arguments?.getLong("orderId") ?: 0L
                                 val vm: OrderDetailViewModel = hiltViewModel()
-
-                                OrderDetailScreen(
-                                    vm = vm,
-                                    orderId = orderId
-                                )
+                                OrderDetailScreen(vm = vm, orderId = orderId)
                             }
 
                             composable(Routes.Profile) {
@@ -357,17 +307,10 @@ class MainActivity : ComponentActivity() {
                                     passwordChangeError = authState.error,
                                     onClearPasswordFeedback = { authVm.clearBanners() },
                                     onSaveProfile = { name, email, phone, address ->
-                                        sessionVm.updateProfile(
-                                            name = name,
-                                            email = email,
-                                            phone = phone,
-                                            address = address
-                                        )
+                                        sessionVm.updateProfile(name, email, phone, address)
                                     },
                                     onRequestPasswordChange = {
-                                        session.email?.takeIf { it.isNotBlank() }?.let { safeEmail ->
-                                            authVm.forgotPassword(safeEmail)
-                                        }
+                                        session.email?.takeIf { it.isNotBlank() }?.let(authVm::forgotPassword)
                                     },
                                     onLogout = { closeSessionNow() }
                                 )
@@ -380,15 +323,9 @@ class MainActivity : ComponentActivity() {
                         fontScale = fontScale,
                         highContrast = highContrast,
                         onToggleExpanded = { accessibilityExpanded = !accessibilityExpanded },
-                        onIncreaseFont = {
-                            fontScale = (fontScale + 0.10f).coerceAtMost(1.35f)
-                        },
-                        onDecreaseFont = {
-                            fontScale = (fontScale - 0.10f).coerceAtLeast(0.90f)
-                        },
-                        onToggleContrast = {
-                            highContrast = !highContrast
-                        },
+                        onIncreaseFont = { fontScale = (fontScale + 0.10f).coerceAtMost(1.35f) },
+                        onDecreaseFont = { fontScale = (fontScale - 0.10f).coerceAtLeast(0.90f) },
+                        onToggleContrast = { highContrast = !highContrast },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(
@@ -403,11 +340,13 @@ class MainActivity : ComponentActivity() {
 
     private fun defaultHomeRoute(role: Role): String = when (role) {
         Role.MESERO -> Routes.Tables
+        Role.COCINERO -> Routes.Kitchen
         else -> Routes.Products
     }
 
     private fun String?.toRoleOrDefault(): Role = when (this?.uppercase()) {
         "MESERO" -> Role.MESERO
+        "COCINERO" -> Role.COCINERO
         "ADMINISTRADOR" -> Role.ADMINISTRADOR
         else -> Role.CLIENTE
     }

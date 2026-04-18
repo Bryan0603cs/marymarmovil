@@ -9,6 +9,7 @@ object Routes {
     const val Cart = "home/cart"
     const val Orders = "home/orders"
     const val Tables = "home/tables"
+    const val Kitchen = "home/kitchen"
     const val Profile = "home/profile"
     const val ActiveTableOrder = "home/table-order"
     const val OrderDetail = "home/order-detail"
