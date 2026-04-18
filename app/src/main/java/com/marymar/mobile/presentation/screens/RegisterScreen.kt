@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +32,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -38,15 +41,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marymar.mobile.R
 import com.marymar.mobile.domain.model.Role
+import com.marymar.mobile.presentation.viewmodel.AuthNext
 import com.marymar.mobile.presentation.viewmodel.AuthViewModel
 import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
@@ -73,10 +79,11 @@ import java.util.Calendar
 
 private val RegisterPrimary = Color(0xFF0F2B3D)
 private val RegisterAccent = Color(0xFF2196F3)
-private val RegisterField = Color(0xFFF2ECE6)
-private val RegisterCaptcha = Color(0xFFECE7DF)
+private val RegisterFieldBg = Color(0xFFF2ECE6)
+private val RegisterCaptchaBg = Color(0xFFECE7DF)
 private val RegisterSuccess = Color(0xFF2E7D32)
 private const val PRIVACY_POLICY_URL = "https://d3hmyhthxmr5gy.cloudfront.net/privacidad"
+private const val REGISTER_SUPPORT_WHATSAPP = "573003710163"
 
 @Composable
 fun RegisterScreen(
@@ -100,9 +107,16 @@ fun RegisterScreen(
     var captchaToken by rememberSaveable { mutableStateOf("") }
     var captchaError by rememberSaveable { mutableStateOf<String?>(null) }
     var reloadNonce by rememberSaveable { mutableIntStateOf(0) }
-    var captchaHeightPx by rememberSaveable { mutableIntStateOf(90) }
+    var captchaHeightPx by rememberSaveable { mutableIntStateOf(94) }
 
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(state.next) {
+        if (state.next == AuthNext.LoggedIn) {
+            vm.consumeNext()
+            onBack()
+        }
+    }
 
     val calendar = Calendar.getInstance()
     val datePickerDialog = remember {
@@ -255,8 +269,8 @@ fun RegisterScreen(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = RegisterField,
-                                unfocusedContainerColor = RegisterField,
+                                focusedContainerColor = RegisterFieldBg,
+                                unfocusedContainerColor = RegisterFieldBg,
                                 focusedBorderColor = RegisterAccent,
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedTextColor = Color.Black,
@@ -280,12 +294,12 @@ fun RegisterScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        color = RegisterCaptcha
+                        color = RegisterCaptchaBg
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
@@ -298,7 +312,8 @@ fun RegisterScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(with(density) { captchaHeightPx.toDp() })
+                                    .height(with(density) { captchaHeightPx.toDp() }),
+                                contentAlignment = Alignment.TopCenter
                             ) {
                                 RecaptchaWidget(
                                     modifier = Modifier.fillMaxSize(),
@@ -316,7 +331,7 @@ fun RegisterScreen(
                                         captchaError = it
                                     },
                                     onHeightChanged = { height ->
-                                        captchaHeightPx = height.coerceIn(90, 420)
+                                        captchaHeightPx = height.coerceIn(94, 430)
                                     }
                                 )
                             }
@@ -440,7 +455,6 @@ fun RegisterScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-
                         Text(
                             text = if (state.loading) "Registrando..." else "Registrarse",
                             fontWeight = FontWeight.SemiBold,
@@ -461,7 +475,44 @@ fun RegisterScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(130.dp))
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 18.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            FloatingActionButton(
+                onClick = { },
+                containerColor = Color(0xFF1388C9),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_accessibility_custom),
+                    contentDescription = "Accesibilidad",
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                )
+            }
+
+            FloatingActionButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$REGISTER_SUPPORT_WHATSAPP"))
+                    context.startActivity(intent)
+                },
+                containerColor = Color(0xFF25D366),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
+            ) {
+                Text(
+                    text = "💬",
+                    color = Color.White,
+                    fontSize = 18.sp
+                )
+            }
         }
     }
 }
@@ -493,8 +544,8 @@ private fun RegisterFieldBox(
                 Text(placeholder, color = MutedText.copy(alpha = 0.75f))
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = RegisterField,
-                unfocusedContainerColor = RegisterField,
+                focusedContainerColor = RegisterFieldBg,
+                unfocusedContainerColor = RegisterFieldBg,
                 focusedBorderColor = RegisterAccent,
                 unfocusedBorderColor = Color.Transparent,
                 focusedTextColor = Color.Black,
@@ -541,8 +592,8 @@ private fun RegisterPasswordField(
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = RegisterField,
-                unfocusedContainerColor = RegisterField,
+                focusedContainerColor = RegisterFieldBg,
+                unfocusedContainerColor = RegisterFieldBg,
                 focusedBorderColor = RegisterAccent,
                 unfocusedBorderColor = Color.Transparent,
                 focusedTextColor = Color.Black,

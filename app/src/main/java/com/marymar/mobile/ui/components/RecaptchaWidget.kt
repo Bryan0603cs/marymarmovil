@@ -14,16 +14,16 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 
-private const val RECAPTCHA_SITE_KEY = "6LcVgIIsAAAAABxim5wib-BL635DRqpJF7I0slj2"
 private const val RECAPTCHA_BASE_URL = "https://appassets.androidplatform.net/"
+private const val RECAPTCHA_SITE_KEY = "PON_AQUI_TU_SITE_KEY_WEB_CHECKBOX"
 
 @Composable
 fun RecaptchaWidget(
     modifier: Modifier = Modifier,
-    reloadNonce: Int,
+    reloadNonce: Int = 0,
     onTokenReceived: (String) -> Unit,
-    onExpired: () -> Unit,
-    onError: (String) -> Unit,
+    onExpired: () -> Unit = {},
+    onError: (String) -> Unit = {},
     onHeightChanged: (Int) -> Unit = {}
 ) {
     key(reloadNonce) {
@@ -40,7 +40,7 @@ fun RecaptchaWidget(
                 }
             },
             update = { webView ->
-                webView.loadUrl("javascript:window.__syncHeight && window.__syncHeight();")
+                webView.evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null)
             },
             onRelease = { webView ->
                 webView.stopLoading()
@@ -93,8 +93,9 @@ private fun WebView.setupRecaptchaWebView(
     webViewClient = object : WebViewClient() {
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
-            postDelayed({ evaluateJavascript("window.__syncHeight && window.__syncHeight();", null) }, 250)
-            postDelayed({ evaluateJavascript("window.__syncHeight && window.__syncHeight();", null) }, 900)
+            postDelayed({ evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) }, 250)
+            postDelayed({ evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) }, 900)
+            postDelayed({ evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) }, 1600)
         }
     }
 
@@ -117,7 +118,7 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   />
   <script
-    src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit"
+    src="https://www.google.com/recaptcha/enterprise.js?onload=onloadCallback&render=explicit"
     async
     defer
   ></script>
@@ -128,6 +129,7 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
       width: 100%;
       background: transparent;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
 
     body {
@@ -136,74 +138,142 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
       align-items: flex-start;
     }
 
-    #outer {
+    #viewport {
       width: 100%;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       overflow: hidden;
+      padding: 0;
+      margin: 0;
+    }
+
+    #shell {
+      width: 304px;
+      transform-origin: top center;
+      will-change: transform;
     }
 
     #recaptcha-container {
+      width: 304px;
       min-height: 78px;
+      display: block;
     }
   </style>
 </head>
 <body>
-  <div id="outer">
-    <div id="recaptcha-container"></div>
+  <div id="viewport">
+    <div id="shell">
+      <div id="recaptcha-container"></div>
+    </div>
   </div>
 
   <script>
+    const BASE_WIDTH = 304;
+    const BASE_HEIGHT = 78;
     let widgetId = null;
 
-    function reportHeight(px) {
+    function postHeight(px) {
       if (window.AndroidBridge && Number.isFinite(px)) {
         window.AndroidBridge.onHeightChanged(String(Math.ceil(px)));
       }
     }
 
-    function syncHeight() {
-      const outer = document.getElementById('outer');
-      const rect = outer.getBoundingClientRect();
-      let h = rect && rect.height ? rect.height : 82;
-
-      if (!h || h < 78) h = 82;
-
-      reportHeight(h + 4);
+    function availableWidth() {
+      const width = document.documentElement.clientWidth || window.innerWidth || BASE_WIDTH;
+      return Math.max(240, width - 12);
     }
 
-    function onloadCallback() {
-      if (typeof grecaptcha === 'undefined') {
-        setTimeout(onloadCallback, 250);
+    function scaleShell() {
+      const shell = document.getElementById('shell');
+      const scale = Math.min(1, availableWidth() / BASE_WIDTH);
+      shell.style.transform = 'scale(' + scale + ')';
+      shell.dataset.scale = String(scale);
+      recalcHeight();
+    }
+
+    function recalcHeight() {
+      const shell = document.getElementById('shell');
+      const rect = shell.getBoundingClientRect();
+      let height = rect && rect.height ? rect.height : 0;
+
+      if (!height || height < 70) {
+        const scale = Number(shell.dataset.scale || '1');
+        height = BASE_HEIGHT * scale;
+      }
+
+      postHeight(height + 10);
+    }
+
+    function installObservers() {
+      window.addEventListener('resize', function() {
+        scaleShell();
+      });
+
+      if (window.ResizeObserver) {
+        const observer = new ResizeObserver(function() {
+          recalcHeight();
+        });
+        observer.observe(document.body);
+        observer.observe(document.getElementById('viewport'));
+        observer.observe(document.getElementById('shell'));
+      }
+
+      if (window.MutationObserver) {
+        const mutationObserver = new MutationObserver(function() {
+          recalcHeight();
+        });
+        mutationObserver.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true
+        });
+      }
+
+      setInterval(recalcHeight, 700);
+    }
+
+    function renderWidget() {
+      if (typeof grecaptcha === 'undefined' || !grecaptcha.enterprise) {
+        setTimeout(renderWidget, 250);
         return;
       }
 
-      widgetId = grecaptcha.render('recaptcha-container', {
+      widgetId = grecaptcha.enterprise.render('recaptcha-container', {
         sitekey: '$siteKey',
         theme: 'light',
         callback: function(token) {
-          syncHeight();
-          if (window.AndroidBridge) window.AndroidBridge.onToken(token);
+          recalcHeight();
+          if (window.AndroidBridge) {
+            window.AndroidBridge.onToken(token);
+          }
         },
         'expired-callback': function() {
-          syncHeight();
-          if (window.AndroidBridge) window.AndroidBridge.onExpired();
+          recalcHeight();
+          if (window.AndroidBridge) {
+            window.AndroidBridge.onExpired();
+          }
         },
         'error-callback': function() {
-          syncHeight();
+          recalcHeight();
           if (window.AndroidBridge) {
             window.AndroidBridge.onError('No fue posible cargar el reCAPTCHA');
           }
         }
       });
 
-      setTimeout(syncHeight, 250);
-      setTimeout(syncHeight, 900);
-      setInterval(syncHeight, 700);
+      setTimeout(recalcHeight, 250);
+      setTimeout(recalcHeight, 900);
+      setTimeout(recalcHeight, 1600);
     }
 
-    window.__syncHeight = syncHeight;
+    function onloadCallback() {
+      scaleShell();
+      renderWidget();
+      installObservers();
+    }
+
+    window.__recalcRecaptchaHeight = recalcHeight;
   </script>
 </body>
 </html>
