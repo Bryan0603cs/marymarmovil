@@ -61,6 +61,16 @@ android {
                 )
             )
         )
+        buildConfigField(
+            "String",
+            "RECAPTCHA_WEB_SITE_KEY",
+            quoted(
+                readConfig(
+                    "MARYMAR_RECAPTCHA_WEB_SITE_KEY",
+                    "6LcVgIIsAAAAABxim5wib-BL635DRqpJF7I0slj2"
+                )
+            )
+        )
     }
 
     buildTypes {

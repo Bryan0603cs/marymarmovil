@@ -2,18 +2,24 @@ package com.marymar.mobile.presentation.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,16 +27,26 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.marymar.mobile.presentation.viewmodel.CartViewModel
 import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
-import com.marymar.mobile.ui.components.PrimaryActionButton
-import com.marymar.mobile.ui.components.SectionHeader
-import com.marymar.mobile.ui.components.SecondaryActionButton
-import com.marymar.mobile.ui.theme.AccentOrange
-import com.marymar.mobile.ui.theme.SoftBeige
+import com.marymar.mobile.ui.components.MinimalHeader
+import com.marymar.mobile.ui.components.DarkPrimaryButton
+import com.marymar.mobile.ui.components.SoftSecondaryButton
+import com.marymar.mobile.ui.components.CircleActionButton
+import com.marymar.mobile.ui.components.formatMoney
+
+private val CartBg = androidx.compose.ui.graphics.Color(0xFFFCF9F1)
+private val CartPrimary = androidx.compose.ui.graphics.Color(0xFF001A24)
+private val CartMuted = androidx.compose.ui.graphics.Color(0xFF6F767A)
+private val CartCard = androidx.compose.ui.graphics.Color.White
+private val CartChip = androidx.compose.ui.graphics.Color(0xFFF1EEE6)
+private val CartAccent = androidx.compose.ui.graphics.Color(0xFF00303F)
 
 @Composable
 fun CartScreen(
@@ -50,45 +66,100 @@ fun CartScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SoftBeige)
-            .padding(16.dp),
+            .background(CartBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        SectionHeader(
-            title = "Tu carrito",
-            subtitle = "Confirma el pedido a domicilio. El stock se valida antes de enviarlo."
-        )
+        MinimalHeader(title = "Carrito")
 
         state.error?.let { ErrorBanner(it) }
         state.message?.let { InfoBanner(it) }
 
         if (state.items.isEmpty()) {
-            InfoBanner("Aún no has agregado productos. Desde el menú puedes ir armando tu pedido.")
-            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = CartCard,
+                shape = RoundedCornerShape(26.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 38.dp, horizontal = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Tu carrito está vacío.",
+                        color = CartMuted,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(state.items, key = { it.product.id }) { item ->
-                    ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(item.product.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                            Text(item.product.description.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = CartCard
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.product.name,
+                                        color = CartPrimary,
+                                        fontFamily = FontFamily.Serif,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 18.sp
+                                    )
+
+                                    if (!item.product.description.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = item.product.description.orEmpty(),
+                                            color = CartMuted,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "$${formatMoney(item.product.price * item.quantity)}",
+                                    color = CartPrimary,
+                                    fontFamily = FontFamily.Serif,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 16.sp
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                CircleActionButton(text = "-") {
+                                    cartVm.decrease(item.product.id)
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = "$${String.format("%,.0f", item.product.price * item.quantity)}",
-                                    color = AccentOrange,
-                                    fontWeight = FontWeight.Bold
+                                    text = item.quantity.toString(),
+                                    color = CartPrimary,
+                                    style = MaterialTheme.typography.titleMedium
                                 )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    SecondaryActionButton(text = "-", modifier = Modifier) { cartVm.decrease(item.product.id) }
-                                    Text(item.quantity.toString(), style = MaterialTheme.typography.titleMedium)
-                                    SecondaryActionButton(text = "+", modifier = Modifier) { cartVm.increase(item.product.id) }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                CircleActionButton(text = "+") {
+                                    cartVm.increase(item.product.id)
                                 }
                             }
                         }
@@ -97,29 +168,39 @@ fun CartScreen(
             }
         }
 
-        ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            color = CartCard
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Productos")
-                    Text(cartVm.totalItems().toString())
+                    Text("Productos", color = CartMuted)
+                    Text(cartVm.totalItems().toString(), color = CartPrimary, fontWeight = FontWeight.SemiBold)
                 }
+
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Total")
+                    Text("Total", color = CartMuted)
                     Text(
-                        "$${String.format("%,.0f", cartVm.total())}",
-                        color = AccentOrange,
-                        fontWeight = FontWeight.Bold
+                        text = "$${formatMoney(cartVm.total())}",
+                        color = CartPrimary,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp
                     )
                 }
-                InfoBanner("Pedido para domicilio. Más adelante aquí podrá integrarse la pasarela de pago.")
-                PrimaryActionButton(
-                    text = "Confirmar pedido",
-                    loading = state.loading,
-                    enabled = state.items.isNotEmpty()
+
+                DarkPrimaryButton(
+                    text = if (state.loading) "Confirmando..." else "Confirmar pedido",
+                    enabled = state.items.isNotEmpty() && !state.loading
                 ) {
                     cartVm.placeDeliveryOrder(sessionUserId)
                 }
-                SecondaryActionButton(text = "Vaciar carrito") {
+
+                SoftSecondaryButton(text = "Vaciar carrito") {
                     cartVm.clear()
                 }
             }

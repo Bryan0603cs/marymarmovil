@@ -13,9 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import com.marymar.mobile.BuildConfig
 
 private const val RECAPTCHA_BASE_URL = "https://appassets.androidplatform.net/"
-private const val RECAPTCHA_SITE_KEY = "PON_AQUI_TU_SITE_KEY_WEB_CHECKBOX"
 
 @Composable
 fun RecaptchaWidget(
@@ -32,6 +32,7 @@ fun RecaptchaWidget(
             factory = { context ->
                 WebView(context).apply {
                     setupRecaptchaWebView(
+                        siteKey = BuildConfig.RECAPTCHA_WEB_SITE_KEY,
                         onTokenReceived = onTokenReceived,
                         onExpired = onExpired,
                         onError = onError,
@@ -40,7 +41,10 @@ fun RecaptchaWidget(
                 }
             },
             update = { webView ->
-                webView.evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null)
+                webView.evaluateJavascript(
+                    "window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();",
+                    null
+                )
             },
             onRelease = { webView ->
                 webView.stopLoading()
@@ -54,6 +58,7 @@ fun RecaptchaWidget(
 
 @SuppressLint("SetJavaScriptEnabled")
 private fun WebView.setupRecaptchaWebView(
+    siteKey: String,
     onTokenReceived: (String) -> Unit,
     onExpired: () -> Unit,
     onError: (String) -> Unit,
@@ -93,15 +98,28 @@ private fun WebView.setupRecaptchaWebView(
     webViewClient = object : WebViewClient() {
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
-            postDelayed({ evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) }, 250)
-            postDelayed({ evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) }, 900)
-            postDelayed({ evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) }, 1600)
+            postDelayed(
+                { evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) },
+                250
+            )
+            postDelayed(
+                { evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) },
+                900
+            )
+            postDelayed(
+                { evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) },
+                1600
+            )
+            postDelayed(
+                { evaluateJavascript("window.__recalcRecaptchaHeight && window.__recalcRecaptchaHeight();", null) },
+                2500
+            )
         }
     }
 
     loadDataWithBaseURL(
         RECAPTCHA_BASE_URL,
-        buildRecaptchaHtml(RECAPTCHA_SITE_KEY),
+        buildRecaptchaHtml(siteKey),
         "text/html",
         "utf-8",
         null
@@ -118,7 +136,7 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   />
   <script
-    src="https://www.google.com/recaptcha/enterprise.js?onload=onloadCallback&render=explicit"
+    src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit"
     async
     defer
   ></script>
@@ -136,6 +154,7 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
       display: flex;
       justify-content: center;
       align-items: flex-start;
+      min-height: 1px;
     }
 
     #viewport {
@@ -151,6 +170,7 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
     #shell {
       width: 304px;
       transform-origin: top center;
+      margin: 0 auto;
       will-change: transform;
     }
 
@@ -158,6 +178,11 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
       width: 304px;
       min-height: 78px;
       display: block;
+      margin: 0 auto;
+    }
+
+    iframe {
+      max-width: 100%;
     }
   </style>
 </head>
@@ -170,7 +195,9 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
 
   <script>
     const BASE_WIDTH = 304;
-    const BASE_HEIGHT = 78;
+    const BASE_HEIGHT = 88;
+    const OWNER_ERROR_HEIGHT = 170;
+    
     let widgetId = null;
 
     function postHeight(px) {
@@ -181,7 +208,12 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
 
     function availableWidth() {
       const width = document.documentElement.clientWidth || window.innerWidth || BASE_WIDTH;
-      return Math.max(240, width - 12);
+      return Math.max(250, width - 8);
+    }
+
+    function currentScale() {
+      const shell = document.getElementById('shell');
+      return Number(shell.dataset.scale || '1');
     }
 
     function scaleShell() {
@@ -192,17 +224,30 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
       recalcHeight();
     }
 
+    function hasOwnerError() {
+      const text = (document.body.innerText || '').toLowerCase();
+      return text.includes('error para el propietario') ||
+             text.includes('error for site owner') ||
+             text.includes('invalid domain') ||
+             text.includes('dominio no válido');
+    }
+
     function recalcHeight() {
       const shell = document.getElementById('shell');
       const rect = shell.getBoundingClientRect();
+      const scale = currentScale();
+
       let height = rect && rect.height ? rect.height : 0;
 
       if (!height || height < 70) {
-        const scale = Number(shell.dataset.scale || '1');
         height = BASE_HEIGHT * scale;
       }
 
-      postHeight(height + 10);
+      if (hasOwnerError()) {
+        height = Math.max(height, OWNER_ERROR_HEIGHT * scale);
+      }
+
+    postHeight(height + 56);
     }
 
     function installObservers() {
@@ -226,7 +271,8 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
         mutationObserver.observe(document.body, {
           childList: true,
           subtree: true,
-          attributes: true
+          attributes: true,
+          characterData: true
         });
       }
 
@@ -234,37 +280,44 @@ private fun buildRecaptchaHtml(siteKey: String): String = """
     }
 
     function renderWidget() {
-      if (typeof grecaptcha === 'undefined' || !grecaptcha.enterprise) {
+      if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
         setTimeout(renderWidget, 250);
         return;
       }
 
-      widgetId = grecaptcha.enterprise.render('recaptcha-container', {
-        sitekey: '$siteKey',
-        theme: 'light',
-        callback: function(token) {
-          recalcHeight();
-          if (window.AndroidBridge) {
-            window.AndroidBridge.onToken(token);
+      try {
+        widgetId = grecaptcha.render('recaptcha-container', {
+          sitekey: '$siteKey',
+          theme: 'light',
+          callback: function(token) {
+            recalcHeight();
+            if (window.AndroidBridge) {
+              window.AndroidBridge.onToken(token);
+            }
+          },
+          'expired-callback': function() {
+            recalcHeight();
+            if (window.AndroidBridge) {
+              window.AndroidBridge.onExpired();
+            }
+          },
+          'error-callback': function() {
+            recalcHeight();
+            if (window.AndroidBridge) {
+              window.AndroidBridge.onError('No fue posible cargar el reCAPTCHA');
+            }
           }
-        },
-        'expired-callback': function() {
-          recalcHeight();
-          if (window.AndroidBridge) {
-            window.AndroidBridge.onExpired();
-          }
-        },
-        'error-callback': function() {
-          recalcHeight();
-          if (window.AndroidBridge) {
-            window.AndroidBridge.onError('No fue posible cargar el reCAPTCHA');
-          }
+        });
+      } catch (error) {
+        if (window.AndroidBridge) {
+          window.AndroidBridge.onError(String(error));
         }
-      });
+      }
 
       setTimeout(recalcHeight, 250);
       setTimeout(recalcHeight, 900);
       setTimeout(recalcHeight, 1600);
+      setTimeout(recalcHeight, 2500);
     }
 
     function onloadCallback() {

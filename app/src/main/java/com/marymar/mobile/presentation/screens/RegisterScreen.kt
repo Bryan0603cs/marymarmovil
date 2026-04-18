@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -32,8 +31,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -51,7 +48,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -107,7 +103,7 @@ fun RegisterScreen(
     var captchaToken by rememberSaveable { mutableStateOf("") }
     var captchaError by rememberSaveable { mutableStateOf<String?>(null) }
     var reloadNonce by rememberSaveable { mutableIntStateOf(0) }
-    var captchaHeightPx by rememberSaveable { mutableIntStateOf(94) }
+    var captchaHeightPx by rememberSaveable { mutableIntStateOf(180) }
 
     val scrollState = rememberScrollState()
 
@@ -261,12 +257,7 @@ fun RegisterScreen(
                             singleLine = true,
                             shape = RoundedCornerShape(50.dp),
                             placeholder = {
-                                Text("DD/MM/AAAA", color = MutedText.copy(alpha = 0.75f))
-                            },
-                            trailingIcon = {
-                                TextButton(onClick = { datePickerDialog.show() }) {
-                                    Text("📅")
-                                }
+                                Text("Selecciona tu fecha", color = MutedText.copy(alpha = 0.75f))
                             },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = RegisterFieldBg,
@@ -291,77 +282,70 @@ fun RegisterScreen(
                         keyboardType = KeyboardType.Phone
                     )
 
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        color = RegisterCaptchaBg
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Text(
-                                text = "Completa la verificación de seguridad",
-                                color = RegisterPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                        Text(
+                            text = "Completa la verificación de seguridad",
+                            color = RegisterPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
 
-                            Box(
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = RegisterCaptchaBg
+                        ) {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(with(density) { captchaHeightPx.toDp() }),
-                                contentAlignment = Alignment.TopCenter
+                                    .padding(horizontal = 12.dp, vertical = 14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                RecaptchaWidget(
-                                    modifier = Modifier.fillMaxSize(),
-                                    reloadNonce = reloadNonce,
-                                    onTokenReceived = {
-                                        captchaToken = it
-                                        captchaError = null
-                                    },
-                                    onExpired = {
-                                        captchaToken = ""
-                                        captchaError = "La verificación expiró. Vuelve a completarla."
-                                    },
-                                    onError = {
-                                        captchaToken = ""
-                                        captchaError = it
-                                    },
-                                    onHeightChanged = { height ->
-                                        captchaHeightPx = height.coerceIn(94, 430)
-                                    }
-                                )
-                            }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(with(density) { captchaHeightPx.toDp() }),
+                                    contentAlignment = Alignment.TopCenter
+                                ) {
+                                    RecaptchaWidget(
+                                        modifier = Modifier.fillMaxSize(),
+                                        reloadNonce = reloadNonce,
+                                        onTokenReceived = {
+                                            captchaToken = it
+                                            captchaError = null
+                                        },
+                                        onExpired = {
+                                            captchaToken = ""
+                                            captchaError = "La verificación expiró. Vuelve a completarla."
+                                        },
+                                        onError = {
+                                            captchaToken = ""
+                                            captchaError = it
+                                        },
+                                        onHeightChanged = { height ->
+                                            captchaHeightPx = height.coerceIn(170, 280)
+                                        }
+                                    )
+                                }
 
-                            if (captchaToken.isNotBlank()) {
-                                Text(
-                                    text = "Verificación completada",
-                                    color = RegisterSuccess,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                                if (captchaToken.isNotBlank()) {
+                                    Text(
+                                        text = "Verificación completada",
+                                        color = RegisterSuccess,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
 
-                            captchaError?.let {
-                                Text(
-                                    text = it,
-                                    color = Color(0xFFD93025),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-
-                            TextButton(
-                                onClick = {
-                                    captchaToken = ""
-                                    captchaError = null
-                                    reloadNonce += 1
-                                },
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text("Recargar verificación", color = RegisterAccent)
+                                captchaError?.let {
+                                    Text(
+                                        text = it,
+                                        color = Color(0xFFD93025),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         }
                     }
@@ -478,41 +462,22 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(130.dp))
         }
 
-        Column(
+        androidx.compose.material3.FloatingActionButton(
+            onClick = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$REGISTER_SUPPORT_WHATSAPP"))
+                context.startActivity(intent)
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 18.dp, bottom = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            containerColor = Color(0xFF25D366),
+            elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
         ) {
-            FloatingActionButton(
-                onClick = { },
-                containerColor = Color(0xFF1388C9),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_accessibility_custom),
-                    contentDescription = "Accesibilidad",
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                )
-            }
-
-            FloatingActionButton(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$REGISTER_SUPPORT_WHATSAPP"))
-                    context.startActivity(intent)
-                },
-                containerColor = Color(0xFF25D366),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) {
-                Text(
-                    text = "💬",
-                    color = Color.White,
-                    fontSize = 18.sp
-                )
-            }
+            Text(
+                text = "💬",
+                color = Color.White,
+                fontSize = 18.sp
+            )
         }
     }
 }

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -29,8 +29,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -49,7 +47,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -79,7 +76,7 @@ private val LoginAccent = Color(0xFF2196F3)
 private val LoginFieldBg = Color(0xFFF2ECE6)
 private val LoginCaptchaBg = Color(0xFFECE7DF)
 private val LoginSuccess = Color(0xFF2E7D32)
-private const val SUPPORT_WHATSAPP = "573003710163"
+private const val LOGIN_SUPPORT_WHATSAPP = "573003710163"
 
 @Composable
 fun LoginScreen(
@@ -102,7 +99,7 @@ fun LoginScreen(
     var manualCaptchaError by rememberSaveable { mutableStateOf<String?>(null) }
     var lastAttemptWasAutomatic by rememberSaveable { mutableStateOf(false) }
     var reloadNonce by rememberSaveable { mutableIntStateOf(0) }
-    var captchaHeightPx by rememberSaveable { mutableIntStateOf(94) }
+    var captchaHeightPx by rememberSaveable { mutableIntStateOf(180) }
 
     val scrollState = rememberScrollState()
 
@@ -121,7 +118,7 @@ fun LoginScreen(
         if (!state.error.isNullOrBlank() && lastAttemptWasAutomatic) {
             manualCaptchaRequired = true
             manualCaptchaToken = ""
-            manualCaptchaError = "Completa la verificación manual para volver a intentar."
+            manualCaptchaError = "Completa la verificación manual para continuar."
             reloadNonce += 1
             lastAttemptWasAutomatic = false
         }
@@ -258,7 +255,7 @@ fun LoginScreen(
                                             manualCaptchaError = it
                                         },
                                         onHeightChanged = { height ->
-                                            captchaHeightPx = height.coerceIn(94, 430)
+                                            captchaHeightPx = height.coerceIn(170, 280)
                                         }
                                     )
                                 }
@@ -279,17 +276,6 @@ fun LoginScreen(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
-
-                                TextButton(
-                                    onClick = {
-                                        manualCaptchaToken = ""
-                                        manualCaptchaError = null
-                                        reloadNonce += 1
-                                    },
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text("Recargar verificación", color = LoginAccent)
-                                }
                             }
                         }
                     } else {
@@ -302,7 +288,7 @@ fun LoginScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
                                     text = "Verificación de seguridad automática",
@@ -310,11 +296,57 @@ fun LoginScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
-                                Text(
-                                    text = "Se ejecuta al presionar Ingresar. Si hay intentos fallidos, se activará el desafío manual.",
-                                    color = MutedText,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(
+                                            width = 1.dp,
+                                            color = Color(0xFFD5D1C9),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                        .background(Color.White, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .background(
+                                                color = Color(0xFFEDF7ED),
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                            .border(
+                                                width = 1.dp,
+                                                color = Color(0xFF2E7D32),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "✓",
+                                            color = Color(0xFF2E7D32),
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Text(
+                                        text = "No soy un robot",
+                                        color = LoginPrimary,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_recaptcha_logo),
+                                        contentDescription = "reCAPTCHA",
+                                        modifier = Modifier.size(28.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
                             }
                         }
                     }
@@ -381,8 +413,12 @@ fun LoginScreen(
                                 vm.startGoogleLoginFlow()
                                 scope.launch {
                                     googleSignInManager.requestGoogleIdToken(activity)
-                                        .onSuccess { vm.loginWithGoogle(it) }
-                                        .onFailure { vm.cancelGoogleLogin(googleSignInManager.toUserMessage(it)) }
+                                        .onSuccess { idToken ->
+                                            vm.loginWithGoogle(idToken)
+                                        }
+                                        .onFailure {
+                                            vm.cancelGoogleLogin(googleSignInManager.toUserMessage(it))
+                                        }
                                 }
                             }
                         },
@@ -437,41 +473,22 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(130.dp))
         }
 
-        Column(
+        androidx.compose.material3.FloatingActionButton(
+            onClick = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$LOGIN_SUPPORT_WHATSAPP"))
+                context.startActivity(intent)
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 18.dp, bottom = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            containerColor = Color(0xFF25D366),
+            elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
         ) {
-            FloatingActionButton(
-                onClick = { },
-                containerColor = Color(0xFF1388C9),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_accessibility_custom),
-                    contentDescription = "Accesibilidad",
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                )
-            }
-
-            FloatingActionButton(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$SUPPORT_WHATSAPP"))
-                    context.startActivity(intent)
-                },
-                containerColor = Color(0xFF25D366),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
-            ) {
-                Text(
-                    text = "💬",
-                    color = Color.White,
-                    fontSize = 18.sp
-                )
-            }
+            Text(
+                text = "💬",
+                color = Color.White,
+                fontSize = 18.sp
+            )
         }
     }
 }
