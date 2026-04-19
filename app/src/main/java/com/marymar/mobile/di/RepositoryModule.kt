@@ -1,9 +1,11 @@
 package com.marymar.mobile.di
 
 import com.marymar.mobile.data.repository.AuthRepositoryImpl
+import com.marymar.mobile.data.repository.ChatbotRepositoryImpl
 import com.marymar.mobile.data.repository.OrderRepositoryImpl
 import com.marymar.mobile.data.repository.ProductRepositoryImpl
 import com.marymar.mobile.domain.repository.AuthRepository
+import com.marymar.mobile.domain.repository.ChatbotRepository
 import com.marymar.mobile.domain.repository.OrderRepository
 import com.marymar.mobile.domain.repository.ProductRepository
 import dagger.Binds
@@ -27,4 +29,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindOrderRepository(impl: OrderRepositoryImpl): OrderRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChatbotRepository(impl: ChatbotRepositoryImpl): ChatbotRepository
 }

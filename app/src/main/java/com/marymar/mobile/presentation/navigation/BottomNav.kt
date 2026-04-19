@@ -1,18 +1,24 @@
 package com.marymar.mobile.presentation.navigation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -24,32 +30,38 @@ private val NavBg = Color(0xFFFCF9F1)
 private val NavActive = Color(0xFF001A24)
 private val NavMuted = Color(0x99001A24)
 
+private data class BottomItem(
+    val route: String,
+    val label: String,
+    val symbol: String
+)
+
 @Composable
 fun BottomNavBar(
     navController: NavController,
     role: Role,
     modifier: Modifier = Modifier
 ) {
-    val backStack = navController.currentBackStackEntryAsState().value
+    val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
 
     val items = when (role) {
         Role.MESERO -> listOf(
-            Triple(Routes.Tables, "Mesas", "▦"),
-            Triple(Routes.Orders, "Pedidos", "▤"),
-            Triple(Routes.Profile, "Perfil", "⚙")
+            BottomItem(Routes.Tables, "Mesas", "▦"),
+            BottomItem(Routes.Orders, "Pedidos", "▤"),
+            BottomItem(Routes.Profile, "Perfil", "⚙")
         )
 
         Role.COCINERO -> listOf(
-            Triple(Routes.Kitchen, "Cocina", "☰"),
-            Triple(Routes.Profile, "Perfil", "⚙")
+            BottomItem(Routes.Kitchen, "Cocina", "☰"),
+            BottomItem(Routes.Profile, "Perfil", "⚙")
         )
 
         else -> listOf(
-            Triple(Routes.Products, "Menú", "✕"),
-            Triple(Routes.Cart, "Carrito", "🛒"),
-            Triple(Routes.Orders, "Pedidos", "▤"),
-            Triple(Routes.Profile, "Perfil", "⚙")
+            BottomItem(Routes.Products, "Menú", "✕"),
+            BottomItem(Routes.Cart, "Carrito", "🛒"),
+            BottomItem(Routes.Orders, "Pedidos", "▤"),
+            BottomItem(Routes.Profile, "Perfil", "⚙")
         )
     }
 
@@ -58,52 +70,69 @@ fun BottomNavBar(
         color = NavBg,
         shadowElevation = 10.dp,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
+        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 10.dp, vertical = 10.dp)
         ) {
-            items.forEach { (destination, label, symbol) ->
-                val selected = route == destination
+            val cellWidth = maxWidth / items.size
 
-                Surface(
-                    onClick = {
-                        navController.navigate(destination) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    color = if (selected) NavActive else Color.Transparent,
-                    contentColor = if (selected) NavBg else NavMuted,
-                    shape = RoundedCornerShape(18.dp),
-                    shadowElevation = 0.dp,
-                    tonalElevation = 0.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { item ->
+                    val selected = route == item.route
+
+                    Box(
+                        modifier = Modifier.width(cellWidth),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = symbol,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selected) NavBg else NavMuted
-                        )
-                        Text(
-                            text = label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (selected) NavBg else NavMuted
-                        )
+                        Surface(
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            color = if (selected) NavActive else Color.Transparent,
+                            contentColor = if (selected) NavBg else NavMuted,
+                            shape = RoundedCornerShape(18.dp),
+                            shadowElevation = 0.dp,
+                            tonalElevation = 0.dp
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = item.symbol,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (selected) NavBg else NavMuted,
+                                    maxLines = 1
+                                )
+
+                                Text(
+                                    text = item.label,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (selected) NavBg else NavMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
             }

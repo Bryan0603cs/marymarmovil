@@ -26,7 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.marymar.mobile.R
 
-private val AccessibilityPrimary = Color(0xFF0B3140)
+private val AccessibilityPrimary = Color(0xFF1189C4)
 
 @Composable
 fun AccessibilityFloatingControls(

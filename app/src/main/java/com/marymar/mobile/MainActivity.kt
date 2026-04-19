@@ -61,6 +61,7 @@ import com.marymar.mobile.presentation.viewmodel.ActiveTableOrderViewModel
 import com.marymar.mobile.presentation.viewmodel.AuthNext
 import com.marymar.mobile.presentation.viewmodel.AuthViewModel
 import com.marymar.mobile.presentation.viewmodel.CartViewModel
+import com.marymar.mobile.presentation.viewmodel.ChatbotViewModel
 import com.marymar.mobile.presentation.viewmodel.KitchenOrdersViewModel
 import com.marymar.mobile.presentation.viewmodel.OrderDetailViewModel
 import com.marymar.mobile.presentation.viewmodel.OrdersViewModel
@@ -68,6 +69,7 @@ import com.marymar.mobile.presentation.viewmodel.ProductsViewModel
 import com.marymar.mobile.presentation.viewmodel.SessionViewModel
 import com.marymar.mobile.presentation.viewmodel.TablesViewModel
 import com.marymar.mobile.ui.components.AccessibilityFloatingControls
+import com.marymar.mobile.ui.components.ClientChatbotWidget
 import com.marymar.mobile.ui.theme.MarymarTheme
 import com.marymar.mobile.ui.theme.MutedText
 import com.marymar.mobile.ui.theme.SurfaceWhite
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
             var fontScale by rememberSaveable { mutableFloatStateOf(1f) }
             var highContrast by rememberSaveable { mutableStateOf(false) }
             var accessibilityExpanded by rememberSaveable { mutableStateOf(false) }
+            var chatbotExpanded by rememberSaveable { mutableStateOf(false) }
 
             MarymarTheme(
                 fontScale = fontScale,
@@ -119,12 +122,25 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = backStackEntry?.destination?.route
                 val sessionVm: SessionViewModel = hiltViewModel()
                 val cartVm: CartViewModel = hiltViewModel()
+                val chatbotVm: ChatbotViewModel = hiltViewModel()
+                val chatbotState by chatbotVm.ui.collectAsStateWithLifecycle()
 
                 val isLoggedIn = session.loggedIn && !session.token.isNullOrBlank() && session.userId != null
                 val isAuthRoute = currentRoute == Routes.Login ||
                         currentRoute == Routes.Register ||
                         currentRoute?.startsWith(Routes.Code) == true
                 val isHomeRoute = currentRoute?.startsWith("home/") == true
+
+                val isClientRoute =
+                    currentRoute == Routes.Products ||
+                            currentRoute == Routes.Cart ||
+                            currentRoute == Routes.Orders ||
+                            currentRoute == Routes.Profile ||
+                            currentRoute?.startsWith("${Routes.OrderDetail}/") == true
+
+                val showClientChatbot = isLoggedIn &&
+                        !isAuthRoute &&
+                        isClientRoute
 
                 LaunchedEffect(session.token, isLoggedIn) {
                     tokenProvider.setToken(session.token.takeIf { isLoggedIn })
@@ -384,6 +400,18 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    if (showClientChatbot) {
+                        ClientChatbotWidget(
+                            expanded = chatbotExpanded,
+                            ui = chatbotState,
+                            onToggleExpanded = { chatbotExpanded = !chatbotExpanded },
+                            onSendMessage = { chatbotVm.sendMessage(it) },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 18.dp, bottom = 156.dp)
+                        )
+                    }
+
                     AccessibilityFloatingControls(
                         expanded = accessibilityExpanded,
                         fontScale = fontScale,
@@ -396,7 +424,11 @@ class MainActivity : ComponentActivity() {
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = 18.dp,
-                                bottom = if (isLoggedIn && !isAuthRoute) 142.dp else 28.dp
+                                bottom = when {
+                                    showClientChatbot -> 248.dp
+                                    isLoggedIn && !isAuthRoute -> 170.dp
+                                    else -> 185.dp
+                                }
                             )
                     )
                 }

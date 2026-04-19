@@ -3,6 +3,7 @@ package com.marymar.mobile.di
 import com.marymar.mobile.BuildConfig
 import com.marymar.mobile.core.network.AuthInterceptor
 import com.marymar.mobile.data.remote.api.AuthApi
+import com.marymar.mobile.data.remote.api.ChatbotApi
 import com.marymar.mobile.data.remote.api.OrderApi
 import com.marymar.mobile.data.remote.api.ProductApi
 import com.squareup.moshi.Moshi
@@ -11,11 +12,11 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -61,4 +62,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOrderApi(retrofit: Retrofit): OrderApi = retrofit.create(OrderApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideChatbotApi(retrofit: Retrofit): ChatbotApi = retrofit.create(ChatbotApi::class.java)
 }
