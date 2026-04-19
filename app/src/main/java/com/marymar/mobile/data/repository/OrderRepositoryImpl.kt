@@ -7,11 +7,16 @@ import com.marymar.mobile.data.remote.api.OrderApi
 import com.marymar.mobile.data.remote.dto.OrderCreateDto
 import com.marymar.mobile.data.remote.dto.OrderDetailCreateDto
 import com.marymar.mobile.data.remote.dto.OrderResponseDto
+import com.marymar.mobile.data.remote.dto.PaymentResponseDto
 import com.marymar.mobile.data.remote.dto.TableResponseDto
 import com.marymar.mobile.domain.model.CartItem
+import com.marymar.mobile.domain.model.UploadAttachment
 import com.marymar.mobile.domain.repository.OrderRepository
-import retrofit2.HttpException
 import javax.inject.Inject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 
 class OrderRepositoryImpl @Inject constructor(
     private val api: OrderApi
@@ -25,7 +30,12 @@ class OrderRepositoryImpl @Inject constructor(
             val body = OrderCreateDto(
                 clienteId = clienteId,
                 tipo = "DOMICILIO",
-                detalles = items.map { OrderDetailCreateDto(it.product.id, it.quantity) }
+                detalles = items.map {
+                    OrderDetailCreateDto(
+                        productoId = it.product.id,
+                        cantidad = it.quantity
+                    )
+                }
             )
             ApiResult.Success(api.createOrder(body))
         } catch (e: HttpException) {
@@ -56,6 +66,9 @@ class OrderRepositoryImpl @Inject constructor(
     override suspend fun cancelTable(tableId: Long): ApiResult<TableResponseDto> =
         callTable { api.cancelTable(tableId) }
 
+    override suspend fun closeTable(tableId: Long): ApiResult<TableResponseDto> =
+        callTable { api.closeTable(tableId) }
+
     override suspend fun getOrderByTable(tableId: Long): ApiResult<OrderResponseDto> =
         callOrder { api.getOrderByTable(tableId) }
 
@@ -70,6 +83,39 @@ class OrderRepositoryImpl @Inject constructor(
 
     override suspend fun removeDetail(orderId: Long, detailId: Long): ApiResult<OrderResponseDto> =
         callOrder { api.removeDetail(orderId, detailId) }
+
+    override suspend fun registerPayment(
+        orderId: Long,
+        method: String,
+        amount: Double,
+        attachment: UploadAttachment?
+    ): ApiResult<PaymentResponseDto> {
+        return try {
+            val textPlain = "text/plain".toMediaType()
+            val pedidoIdBody = orderId.toString().toRequestBody(textPlain)
+            val metodoBody = method.uppercase().toRequestBody(textPlain)
+            val montoBody = amount.toString().toRequestBody(textPlain)
+
+            val comprobantePart = attachment?.let { file ->
+                val mediaType = file.mimeType.ifBlank { "application/octet-stream" }.toMediaType()
+                val requestBody = file.bytes.toRequestBody(mediaType)
+                MultipartBody.Part.createFormData("comprobante", file.fileName, requestBody)
+            }
+
+            ApiResult.Success(
+                api.registerPayment(
+                    pedidoId = pedidoIdBody,
+                    metodo = metodoBody,
+                    monto = montoBody,
+                    comprobante = comprobantePart
+                )
+            )
+        } catch (e: HttpException) {
+            ApiResult.Error(e.toReadableMessage("No fue posible registrar el pago"), e.code(), e)
+        } catch (e: Exception) {
+            ApiResult.Error(e.toUserFriendlyMessage("No fue posible registrar el pago"), null, e)
+        }
+    }
 
     private suspend fun callOrder(block: suspend () -> OrderResponseDto): ApiResult<OrderResponseDto> {
         return try {

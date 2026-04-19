@@ -2,8 +2,10 @@ package com.marymar.mobile.domain.repository
 
 import com.marymar.mobile.core.util.ApiResult
 import com.marymar.mobile.data.remote.dto.OrderResponseDto
+import com.marymar.mobile.data.remote.dto.PaymentResponseDto
 import com.marymar.mobile.data.remote.dto.TableResponseDto
 import com.marymar.mobile.domain.model.CartItem
+import com.marymar.mobile.domain.model.UploadAttachment
 
 interface OrderRepository {
     suspend fun createDeliveryOrder(clienteId: Long, items: List<CartItem>): ApiResult<OrderResponseDto>
@@ -15,10 +17,18 @@ interface OrderRepository {
     suspend fun getTables(): ApiResult<List<TableResponseDto>>
     suspend fun openTable(tableId: Long, meseroId: Long): ApiResult<TableResponseDto>
     suspend fun cancelTable(tableId: Long): ApiResult<TableResponseDto>
+    suspend fun closeTable(tableId: Long): ApiResult<TableResponseDto>
 
     suspend fun getOrderByTable(tableId: Long): ApiResult<OrderResponseDto>
     suspend fun openOrderForTable(tableId: Long, meseroId: Long): ApiResult<OrderResponseDto>
     suspend fun addProductToOrder(orderId: Long, productId: Long, quantity: Int): ApiResult<OrderResponseDto>
     suspend fun decreaseProduct(orderId: Long, productId: Long): ApiResult<OrderResponseDto>
     suspend fun removeDetail(orderId: Long, detailId: Long): ApiResult<OrderResponseDto>
+
+    suspend fun registerPayment(
+        orderId: Long,
+        method: String,
+        amount: Double,
+        attachment: UploadAttachment? = null
+    ): ApiResult<PaymentResponseDto>
 }

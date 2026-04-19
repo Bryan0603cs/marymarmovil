@@ -6,6 +6,12 @@ import com.marymar.mobile.core.util.ApiResult
 import com.marymar.mobile.data.remote.dto.OrderResponseDto
 import com.marymar.mobile.domain.repository.OrderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,121 +26,167 @@ class KitchenOrdersViewModel @Inject constructor(
     private val _ui = MutableStateFlow(KitchenOrdersUiState())
     val ui: StateFlow<KitchenOrdersUiState> = _ui.asStateFlow()
 
-    private val preparationStartedAt = mutableMapOf<Long, Long>()
-
     fun load() {
-        _ui.value = _ui.value.copy(loading = true, error = null, message = null)
+        _ui.value = _ui.value.copy(
+            loading = true,
+            error = null,
+            message = null
+        )
 
         viewModelScope.launch {
             when (val result = orderRepository.getAllOrders()) {
                 is ApiResult.Success -> {
-                    val kitchenOrders = result.data
-                        .filter { it.estado.uppercase() != "CANCELADO" }
-                        .filter { it.tipo.equals("MESA", true) || it.mesaId != null }
-                        .sortedByDescending { it.fecha }
+                    val orders = result.data
+                        .filter { it.tipo.equals("MESA", true) }
+                        .sortedBy { it.id }
 
-                    val queue = kitchenOrders.filter {
-                        it.estado.equals("CREADO", true) || it.estado.equals("CONFIRMADO", true)
-                    }
+                    val currentStarted = _ui.value.preparationStartedAt
+                    val updatedStarted = currentStarted.toMutableMap()
 
-                    val preparing = kitchenOrders.filter {
-                        it.estado.equals("EN_PREPARACION", true)
-                    }
-
-                    val ready = kitchenOrders.filter {
-                        it.estado.equals("LISTO", true)
-                    }
-
-                    val preparingIds = preparing.map { it.id }.toSet()
-
-                    preparing.forEach { order ->
-                        if (!preparationStartedAt.containsKey(order.id)) {
-                            preparationStartedAt[order.id] = System.currentTimeMillis()
+                    orders
+                        .filter { it.estado.equals("EN_PREPARACION", true) }
+                        .forEach { order ->
+                            if (!updatedStarted.containsKey(order.id)) {
+                                updatedStarted[order.id] =
+                                    parseOrderDateToMillis(order.fecha) ?: System.currentTimeMillis()
+                            }
                         }
+
+                    _ui.value = _ui.value.copy(
+                        loading = false,
+                        allOrders = orders,
+                        preparationStartedAt = updatedStarted
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    _ui.value = _ui.value.copy(
+                        loading = false,
+                        error = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun startPreparation(order: OrderResponseDto) {
+        _ui.value = _ui.value.copy(
+            actionLoadingId = order.id,
+            error = null,
+            message = null
+        )
+
+        viewModelScope.launch {
+            when (val result = orderRepository.changeOrderStatus(order.id, "EN_PREPARACION")) {
+                is ApiResult.Success -> {
+                    val now = System.currentTimeMillis()
+                    _ui.value = _ui.value.copy(
+                        actionLoadingId = null,
+                        message = "Pedido #${order.id} pasó a preparación",
+                        preparationStartedAt = _ui.value.preparationStartedAt + (order.id to now)
+                    )
+                    load()
+                }
+
+                is ApiResult.Error -> {
+                    _ui.value = _ui.value.copy(
+                        actionLoadingId = null,
+                        error = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun markReady(order: OrderResponseDto) {
+        _ui.value = _ui.value.copy(
+            actionLoadingId = order.id,
+            error = null,
+            message = null
+        )
+
+        viewModelScope.launch {
+            when (val result = orderRepository.changeOrderStatus(order.id, "LISTO")) {
+                is ApiResult.Success -> {
+                    val started = _ui.value.preparationStartedAt[order.id]
+                    val finishedMap = if (started != null) {
+                        _ui.value.preparationFinishedElapsed + (
+                                order.id to (System.currentTimeMillis() - started).coerceAtLeast(0L)
+                                )
+                    } else {
+                        _ui.value.preparationFinishedElapsed
                     }
 
-                    val idsToRemove = preparationStartedAt.keys.filter { it !in preparingIds }
-                    idsToRemove.forEach { preparationStartedAt.remove(it) }
-
                     _ui.value = _ui.value.copy(
-                        loading = false,
-                        queue = queue,
-                        preparing = preparing,
-                        ready = ready
-                    )
-                }
-
-                is ApiResult.Error -> {
-                    _ui.value = _ui.value.copy(
-                        loading = false,
-                        error = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    fun startPreparation(orderId: Long) {
-        _ui.value = _ui.value.copy(actionLoadingOrderId = orderId, error = null, message = null)
-
-        viewModelScope.launch {
-            when (val result = orderRepository.changeOrderStatus(orderId, "EN_PREPARACION")) {
-                is ApiResult.Success -> {
-                    preparationStartedAt[orderId] = System.currentTimeMillis()
-                    _ui.value = _ui.value.copy(
-                        actionLoadingOrderId = null,
-                        message = "Pedido enviado a preparación"
+                        actionLoadingId = null,
+                        message = "Pedido #${order.id} marcado como listo",
+                        preparationFinishedElapsed = finishedMap
                     )
                     load()
                 }
 
                 is ApiResult.Error -> {
                     _ui.value = _ui.value.copy(
-                        actionLoadingOrderId = null,
+                        actionLoadingId = null,
                         error = result.message
                     )
                 }
             }
         }
     }
-
-    fun markReady(orderId: Long) {
-        _ui.value = _ui.value.copy(actionLoadingOrderId = orderId, error = null, message = null)
-
-        viewModelScope.launch {
-            when (val result = orderRepository.changeOrderStatus(orderId, "LISTO")) {
-                is ApiResult.Success -> {
-                    preparationStartedAt.remove(orderId)
-                    _ui.value = _ui.value.copy(
-                        actionLoadingOrderId = null,
-                        message = "Pedido marcado como listo"
-                    )
-                    load()
-                }
-
-                is ApiResult.Error -> {
-                    _ui.value = _ui.value.copy(
-                        actionLoadingOrderId = null,
-                        error = result.message
-                    )
-                }
-            }
-        }
-    }
-
-    fun getPreparationStartedAt(orderId: Long): Long? = preparationStartedAt[orderId]
 
     fun clearBanner() {
-        _ui.value = _ui.value.copy(error = null, message = null)
+        _ui.value = _ui.value.copy(
+            error = null,
+            message = null
+        )
+    }
+
+    private fun parseOrderDateToMillis(rawDate: String?): Long? {
+        if (rawDate.isNullOrBlank()) return null
+
+        return try {
+            LocalDateTime.parse(rawDate)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        } catch (_: DateTimeParseException) {
+            try {
+                OffsetDateTime.parse(rawDate)
+                    .toInstant()
+                    .toEpochMilli()
+            } catch (_: DateTimeParseException) {
+                try {
+                    Instant.parse(rawDate).toEpochMilli()
+                } catch (_: DateTimeParseException) {
+                    try {
+                        LocalDateTime.parse(
+                            rawDate,
+                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                        ).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    } catch (_: DateTimeParseException) {
+                        null
+                    }
+                }
+            }
+        }
     }
 }
 
 data class KitchenOrdersUiState(
     val loading: Boolean = false,
-    val actionLoadingOrderId: Long? = null,
-    val queue: List<OrderResponseDto> = emptyList(),
-    val preparing: List<OrderResponseDto> = emptyList(),
-    val ready: List<OrderResponseDto> = emptyList(),
+    val actionLoadingId: Long? = null,
+    val allOrders: List<OrderResponseDto> = emptyList(),
+    val preparationStartedAt: Map<Long, Long> = emptyMap(),
+    val preparationFinishedElapsed: Map<Long, Long> = emptyMap(),
     val error: String? = null,
     val message: String? = null
-)
+) {
+    val newOrders: List<OrderResponseDto>
+        get() = allOrders.filter {
+            it.estado.equals("CREADO", true) || it.estado.equals("CONFIRMADO", true)
+        }
+
+    val preparingOrders: List<OrderResponseDto>
+        get() = allOrders.filter { it.estado.equals("EN_PREPARACION", true) }
+}

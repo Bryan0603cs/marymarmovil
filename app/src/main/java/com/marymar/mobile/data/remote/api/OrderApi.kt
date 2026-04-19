@@ -2,12 +2,17 @@ package com.marymar.mobile.data.remote.api
 
 import com.marymar.mobile.data.remote.dto.OrderCreateDto
 import com.marymar.mobile.data.remote.dto.OrderResponseDto
+import com.marymar.mobile.data.remote.dto.PaymentResponseDto
 import com.marymar.mobile.data.remote.dto.TableResponseDto
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -70,4 +75,19 @@ interface OrderApi {
 
     @POST("api/mesas/{id}/cancelar")
     suspend fun cancelTable(@Path("id") tableId: Long): TableResponseDto
+
+    @POST("api/mesas/{id}/cerrar")
+    suspend fun closeTable(@Path("id") tableId: Long): TableResponseDto
+
+    @Multipart
+    @POST("api/pagos")
+    suspend fun registerPayment(
+        @Part("pedidoId") pedidoId: RequestBody,
+        @Part("metodo") metodo: RequestBody,
+        @Part("monto") monto: RequestBody,
+        @Part comprobante: MultipartBody.Part? = null
+    ): PaymentResponseDto
+
+    @GET("api/pagos/pedido/{pedidoId}")
+    suspend fun getPaymentByOrder(@Path("pedidoId") pedidoId: Long): PaymentResponseDto
 }

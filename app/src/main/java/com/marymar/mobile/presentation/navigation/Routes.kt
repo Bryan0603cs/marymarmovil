@@ -12,5 +12,6 @@ object Routes {
     const val Kitchen = "home/kitchen"
     const val Profile = "home/profile"
     const val ActiveTableOrder = "home/table-order"
+    const val TableProducts = "home/table-products"
     const val OrderDetail = "home/order-detail"
 }

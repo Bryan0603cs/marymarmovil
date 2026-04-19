@@ -36,3 +36,9 @@ data class Order(
     val status: String,
     val total: Double
 )
+
+data class UploadAttachment(
+    val fileName: String,
+    val mimeType: String,
+    val bytes: ByteArray
+)

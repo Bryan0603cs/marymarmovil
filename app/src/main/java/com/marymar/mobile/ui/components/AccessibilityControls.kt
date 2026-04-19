@@ -21,11 +21,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.marymar.mobile.R
 
-private val AccessibilityBlue = androidx.compose.ui.graphics.Color(0xFF1388C9)
+private val AccessibilityPrimary = Color(0xFF0B3140)
 
 @Composable
 fun AccessibilityFloatingControls(
@@ -65,9 +66,7 @@ fun AccessibilityFloatingControls(
                     ElevatedAssistChip(
                         onClick = {},
                         enabled = false,
-                        label = {
-                            Text("Texto ${(fontScale * 100).toInt()}%")
-                        }
+                        label = { Text("Texto ${(fontScale * 100).toInt()}%") }
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -104,9 +103,9 @@ fun AccessibilityFloatingControls(
                     ) {
                         Text(
                             text = if (highContrast) {
-                                "Contraste alto: activo"
+                                "Modo alto contraste: activo"
                             } else {
-                                "Activar contraste alto"
+                                "Activar modo alto contraste"
                             }
                         )
                     }
@@ -120,8 +119,8 @@ fun AccessibilityFloatingControls(
 
         FloatingActionButton(
             onClick = onToggleExpanded,
-            containerColor = AccessibilityBlue,
-            contentColor = androidx.compose.ui.graphics.Color.White,
+            containerColor = AccessibilityPrimary,
+            contentColor = Color.White,
             elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
         ) {
             Image(

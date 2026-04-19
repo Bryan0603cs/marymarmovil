@@ -42,7 +42,9 @@ data class OrderDetailResponseDto(
 data class PaymentResponseDto(
     @Json(name = "id") val id: Long? = null,
     @Json(name = "metodo") val metodo: String? = null,
-    @Json(name = "monto") val monto: Double? = null
+    @Json(name = "monto") val monto: Double? = null,
+    @Json(name = "fechaPago") val fechaPago: String? = null,
+    @Json(name = "comprobanteUrl") val comprobanteUrl: String? = null
 )
 
 data class TableResponseDto(

@@ -1,9 +1,11 @@
 package com.marymar.mobile
 
 import android.content.pm.ActivityInfo
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +16,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -26,7 +33,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.marymar.mobile.core.auth.GoogleSignInManager
 import com.marymar.mobile.core.network.TokenProvider
@@ -35,8 +45,28 @@ import com.marymar.mobile.core.storage.SessionStore
 import com.marymar.mobile.domain.model.Role
 import com.marymar.mobile.presentation.navigation.BottomNavBar
 import com.marymar.mobile.presentation.navigation.Routes
-import com.marymar.mobile.presentation.screens.*
-import com.marymar.mobile.presentation.viewmodel.*
+import com.marymar.mobile.presentation.screens.ActiveTableOrderScreen
+import com.marymar.mobile.presentation.screens.CartScreen
+import com.marymar.mobile.presentation.screens.CodeScreen
+import com.marymar.mobile.presentation.screens.KitchenOrdersScreen
+import com.marymar.mobile.presentation.screens.LoginScreen
+import com.marymar.mobile.presentation.screens.OrderDetailScreen
+import com.marymar.mobile.presentation.screens.OrdersScreen
+import com.marymar.mobile.presentation.screens.ProductListScreen
+import com.marymar.mobile.presentation.screens.ProfileScreen
+import com.marymar.mobile.presentation.screens.RegisterScreen
+import com.marymar.mobile.presentation.screens.TableProductCatalogScreen
+import com.marymar.mobile.presentation.screens.TablesScreen
+import com.marymar.mobile.presentation.viewmodel.ActiveTableOrderViewModel
+import com.marymar.mobile.presentation.viewmodel.AuthNext
+import com.marymar.mobile.presentation.viewmodel.AuthViewModel
+import com.marymar.mobile.presentation.viewmodel.CartViewModel
+import com.marymar.mobile.presentation.viewmodel.KitchenOrdersViewModel
+import com.marymar.mobile.presentation.viewmodel.OrderDetailViewModel
+import com.marymar.mobile.presentation.viewmodel.OrdersViewModel
+import com.marymar.mobile.presentation.viewmodel.ProductsViewModel
+import com.marymar.mobile.presentation.viewmodel.SessionViewModel
+import com.marymar.mobile.presentation.viewmodel.TablesViewModel
 import com.marymar.mobile.ui.components.AccessibilityFloatingControls
 import com.marymar.mobile.ui.theme.MarymarTheme
 import com.marymar.mobile.ui.theme.MutedText
@@ -114,14 +144,19 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                val statusBarColor = if (isLoggedIn) {
-                    MaterialTheme.colorScheme.primary.toArgb()
-                } else {
-                    MaterialTheme.colorScheme.background.toArgb()
-                }
+                val systemBarColor = MaterialTheme.colorScheme.background.toArgb()
 
-                LaunchedEffect(statusBarColor) {
-                    window.statusBarColor = statusBarColor
+                LaunchedEffect(systemBarColor, highContrast) {
+                    window.statusBarColor = systemBarColor
+                    window.navigationBarColor = systemBarColor
+
+                    val controller = WindowCompat.getInsetsController(window, window.decorView)
+                    controller.isAppearanceLightStatusBars = !highContrast
+                    controller.isAppearanceLightNavigationBars = !highContrast
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        window.isNavigationBarContrastEnforced = false
+                    }
                 }
 
                 fun closeSessionNow() {
@@ -134,15 +169,22 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
                     Scaffold(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        contentColor = MaterialTheme.colorScheme.onBackground,
                         topBar = {
-                            if (
-                                isLoggedIn &&
-                                !isAuthRoute &&
-                                currentRoute != Routes.Products &&
-                                currentRoute != Routes.Kitchen
-                            ) {
+                            val hideTopBar = currentRoute == Routes.Products ||
+                                    currentRoute == Routes.Kitchen ||
+                                    currentRoute == Routes.Tables ||
+                                    currentRoute?.startsWith(Routes.ActiveTableOrder) == true ||
+                                    currentRoute?.startsWith(Routes.TableProducts) == true
+
+                            if (isLoggedIn && !isAuthRoute && !hideTopBar) {
                                 CenterAlignedTopAppBar(
                                     title = {
                                         Column {
@@ -283,7 +325,31 @@ class MainActivity : ComponentActivity() {
                                     mesaId = mesaId,
                                     mesaNumero = mesaNumero,
                                     meseroId = session.userId ?: 0L,
-                                    authToken = session.token.orEmpty()
+                                    authToken = session.token.orEmpty(),
+                                    onOpenAddProducts = {
+                                        nav.navigate("${Routes.TableProducts}/$mesaId/$mesaNumero")
+                                    },
+                                    onExitTable = { nav.popBackStack() }
+                                )
+                            }
+
+                            composable(
+                                route = "${Routes.TableProducts}/{mesaId}/{mesaNumero}",
+                                arguments = listOf(
+                                    navArgument("mesaId") { type = NavType.LongType },
+                                    navArgument("mesaNumero") { type = NavType.IntType }
+                                )
+                            ) { backStack ->
+                                val mesaId = backStack.arguments?.getLong("mesaId") ?: 0L
+                                val mesaNumero = backStack.arguments?.getInt("mesaNumero") ?: 0
+                                val vm: ActiveTableOrderViewModel = hiltViewModel()
+
+                                TableProductCatalogScreen(
+                                    vm = vm,
+                                    mesaId = mesaId,
+                                    mesaNumero = mesaNumero,
+                                    meseroId = session.userId ?: 0L,
+                                    onBack = { nav.popBackStack() }
                                 )
                             }
 
@@ -330,7 +396,7 @@ class MainActivity : ComponentActivity() {
                             .align(Alignment.BottomEnd)
                             .padding(
                                 end = 18.dp,
-                                bottom = if (isLoggedIn && !isAuthRoute) 96.dp else 18.dp
+                                bottom = if (isLoggedIn && !isAuthRoute) 142.dp else 28.dp
                             )
                     )
                 }

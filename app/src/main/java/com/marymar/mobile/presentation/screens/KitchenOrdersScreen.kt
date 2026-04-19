@@ -4,13 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,28 +34,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marymar.mobile.data.remote.dto.OrderResponseDto
 import com.marymar.mobile.presentation.viewmodel.KitchenOrdersViewModel
+import com.marymar.mobile.ui.components.DarkPrimaryButton
 import com.marymar.mobile.ui.components.ErrorBanner
 import com.marymar.mobile.ui.components.InfoBanner
-import com.marymar.mobile.ui.components.formatMoney
+import kotlinx.coroutines.delay
 
 private val KitchenBg = Color(0xFFFCF9F1)
-private val KitchenPanel = Color(0xFFF6F3EB)
-private val KitchenCard = Color.White
 private val KitchenPrimary = Color(0xFF001A24)
-private val KitchenPrimarySoft = Color(0xFF00303F)
 private val KitchenMuted = Color(0xFF6F767A)
-private val KitchenBorderSoft = Color(0xFFE5E2DA)
-private val KitchenBlue = Color(0xFF3D6374)
-private val KitchenBlueSoft = Color(0xFFD6E5ED)
-private val KitchenReadyCircle = Color(0xFF6C8792)
+private val KitchenCard = Color.White
+private val KitchenSoft = Color(0xFFF1EEE6)
+private val KitchenChip = Color(0xFFEAF2F6)
+private val KitchenButton = Color(0xFF3F6D84)
 private val KitchenCountDark = Color(0xFF001A24)
-private val KitchenCountLight = Color(0xFFD6E5ED)
+private val KitchenCountLight = Color(0xFFD8E6EE)
 
 @Composable
 fun KitchenOrdersScreen(
     vm: KitchenOrdersViewModel
 ) {
     val state by vm.ui.collectAsState()
+
+    val nowMillis by produceState(initialValue = System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
 
     LaunchedEffect(Unit) {
         vm.load()
@@ -63,13 +70,51 @@ fun KitchenOrdersScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(KitchenBg)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            KitchenHeader()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp)
+            ) {
+                Text(
+                    text = "Cocina",
+                    modifier = Modifier.align(Alignment.Center),
+                    color = KitchenPrimary,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 24.sp
+                )
+
+                Surface(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    shape = CircleShape,
+                    color = KitchenCard,
+                    contentColor = KitchenPrimary
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "⚙",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        state.message?.let { message ->
+            item { InfoBanner(message) }
+        }
+
+        state.error?.let { error ->
+            item { ErrorBanner(error) }
         }
 
         if (state.loading) {
@@ -78,192 +123,96 @@ fun KitchenOrdersScreen(
             }
         }
 
-        state.message?.let { msg ->
-            item { InfoBanner(msg) }
-        }
-
-        state.error?.let { err ->
-            item { ErrorBanner(err) }
-        }
-
         item {
-            KitchenSectionContainer(
+            SectionHeader(
                 title = "Nuevos Pedidos",
-                count = state.queue.size,
-                darkCount = true
-            ) {
-                if (state.queue.isEmpty()) {
-                    EmptyKitchenCard("No hay pedidos nuevos.")
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        state.queue.forEach { order ->
-                            NewKitchenOrderCard(
-                                order = order,
-                                loading = state.actionLoadingOrderId == order.id,
-                                onAction = { vm.startPreparation(order.id) }
-                            )
-                        }
-                    }
-                }
-            }
+                count = state.newOrders.size,
+                darkBadge = true
+            )
         }
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "En Preparación",
-                    color = KitchenPrimary,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.weight(1f)
-                )
-
-                CountBubble(
-                    count = state.preparing.size,
-                    dark = false
-                )
+        if (state.newOrders.isEmpty()) {
+            item {
+                EmptyKitchenCard(text = "No hay pedidos nuevos.")
             }
-        }
-
-        if (state.preparing.isEmpty()) {
-            item { EmptyKitchenCard("No hay pedidos en preparación.") }
         } else {
-            items(state.preparing, key = { it.id }) { order ->
-                PreparingKitchenOrderCard(
+            items(state.newOrders, key = { it.id }) { order ->
+                KitchenNewOrderCard(
                     order = order,
-                    loading = state.actionLoadingOrderId == order.id,
-                    onAction = { vm.markReady(order.id) }
+                    loading = state.actionLoadingId == order.id,
+                    onStartPreparation = { vm.startPreparation(order) }
                 )
             }
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Listos",
-                    color = KitchenPrimary,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Text(
-                    text = "Ver todos",
-                    color = KitchenPrimary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            SectionHeader(
+                title = "En Preparación",
+                count = state.preparingOrders.size,
+                darkBadge = false
+            )
         }
 
-        if (state.ready.isEmpty()) {
-            item { EmptyKitchenCard("No hay pedidos listos.") }
+        if (state.preparingOrders.isEmpty()) {
+            item {
+                EmptyKitchenCard(text = "No hay pedidos en preparación.")
+            }
         } else {
-            items(state.ready, key = { it.id }) { order ->
-                ReadyKitchenOrderCard(order)
+            items(state.preparingOrders, key = { it.id }) { order ->
+                val startedAt = state.preparationStartedAt[order.id]
+                val frozenElapsed = state.preparationFinishedElapsed[order.id]
+
+                val elapsedMillis = when {
+                    frozenElapsed != null -> frozenElapsed
+                    startedAt != null -> (nowMillis - startedAt).coerceAtLeast(0L)
+                    else -> 0L
+                }
+
+                KitchenPreparingOrderCard(
+                    order = order,
+                    elapsedLabel = formatElapsed(elapsedMillis),
+                    loading = state.actionLoadingId == order.id,
+                    onMarkReady = { vm.markReady(order) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun KitchenHeader() {
+private fun SectionHeader(
+    title: String,
+    count: Int,
+    darkBadge: Boolean
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 6.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "☰",
-            color = KitchenPrimary,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(end = 16.dp)
-        )
-
-        Text(
-            text = "Cocina",
+            text = title,
             color = KitchenPrimary,
             fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.Bold,
-            fontSize = 28.sp,
-            modifier = Modifier.weight(1f)
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp
         )
 
-        Text(
-            text = "⚙",
-            color = KitchenPrimary,
-            fontSize = 22.sp
-        )
-    }
-}
-
-@Composable
-private fun KitchenSectionContainer(
-    title: String,
-    count: Int,
-    darkCount: Boolean,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = KitchenPanel
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Surface(
+            shape = CircleShape,
+            color = if (darkBadge) KitchenCountDark else KitchenCountLight,
+            contentColor = if (darkBadge) Color.White else KitchenPrimary
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = title,
-                    color = KitchenPrimary,
-                    fontFamily = FontFamily.Serif,
+                    text = count.toString(),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    modifier = Modifier.weight(1f)
-                )
-
-                CountBubble(
-                    count = count,
-                    dark = darkCount
+                    fontSize = 13.sp
                 )
             }
-
-            content()
-        }
-    }
-}
-
-@Composable
-private fun CountBubble(
-    count: Int,
-    dark: Boolean
-) {
-    Surface(
-        shape = CircleShape,
-        color = if (dark) KitchenCountDark else KitchenCountLight
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = count.toString(),
-                color = if (dark) Color.White else KitchenPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
         }
     }
 }
@@ -272,75 +221,85 @@ private fun CountBubble(
 private fun EmptyKitchenCard(text: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = KitchenCard
+        shape = RoundedCornerShape(26.dp),
+        color = KitchenSoft
     ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(18.dp),
-            color = KitchenMuted
-        )
-    }
-}
-
-@Composable
-private fun NewKitchenOrderCard(
-    order: OrderResponseDto,
-    loading: Boolean,
-    onAction: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = KitchenCard
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = KitchenCard
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Pedido #${order.id}",
-                        color = KitchenPrimary,
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-
-                    Text(
-                        text = kitchenDestination(order),
-                        color = KitchenMuted,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                TimePill(kitchenTimeLabel(order))
-            }
-
-            KitchenItemsList(order)
-
-            KitchenPrimaryButton(
-                text = if (loading) "INICIANDO..." else "INICIAR PREPARACIÓN",
-                color = KitchenPrimary,
-                onClick = onAction
+            Text(
+                text = text,
+                modifier = Modifier.padding(16.dp),
+                color = KitchenMuted,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
 }
 
 @Composable
-private fun PreparingKitchenOrderCard(
+private fun KitchenNewOrderCard(
     order: OrderResponseDto,
     loading: Boolean,
-    onAction: () -> Unit
+    onStartPreparation: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(26.dp),
+        color = KitchenCard
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Pedido #${order.id}",
+                        color = KitchenPrimary,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "Mesa ${order.numeroMesa ?: "--"}",
+                        color = KitchenMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                StatusTag(text = "NUEVO")
+            }
+
+            ProductList(order = order)
+
+            DarkPrimaryButton(
+                text = if (loading) "Aceptando..." else "Iniciar preparación",
+                enabled = !loading,
+                onClick = onStartPreparation
+            )
+        }
+    }
+}
+
+@Composable
+private fun KitchenPreparingOrderCard(
+    order: OrderResponseDto,
+    elapsedLabel: String,
+    loading: Boolean,
+    onMarkReady: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
         color = KitchenCard
     ) {
         Column(
@@ -349,202 +308,139 @@ private fun PreparingKitchenOrderCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF6F3EB))
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                    .background(KitchenSoft)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "⏱ 12:45",
+                    text = "⏱ $elapsedLabel",
                     color = KitchenPrimary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyMedium
                 )
 
                 Text(
                     text = "EN CURSO",
                     color = KitchenMuted,
+                    fontWeight = FontWeight.Medium,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
 
             Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Pedido #${order.id}",
-                    color = KitchenPrimary,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-
-                Text(
-                    text = kitchenDestination(order),
-                    color = KitchenMuted,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                KitchenItemsList(order)
-
-                KitchenPrimaryButton(
-                    text = if (loading) "ACTUALIZANDO..." else "MARCAR COMO LISTO",
-                    color = KitchenBlue,
-                    onClick = onAction
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReadyKitchenOrderCard(order: OrderResponseDto) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = Color(0xFFF6F3EB)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Pedido #${order.id}",
-                    color = KitchenPrimary,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-
-                val itemCount = order.detalles.orEmpty().sumOf { it.cantidad }
-
-                Text(
-                    text = "${kitchenDestination(order)} • $itemCount item${if (itemCount == 1) "" else "s"}",
-                    color = KitchenMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Surface(
-                shape = CircleShape,
-                color = Color.White
-            ) {
-                Box(
-                    modifier = Modifier.padding(10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "✓",
-                        color = KitchenReadyCircle,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        text = "Pedido #${order.id}",
+                        color = KitchenPrimary,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
                     )
+                    Text(
+                        text = "Mesa ${order.numeroMesa ?: "--"}",
+                        color = KitchenMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                ProductList(order = order)
+
+                Surface(
+                    onClick = onMarkReady,
+                    shape = RoundedCornerShape(20.dp),
+                    color = KitchenButton,
+                    contentColor = Color.White,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (loading) "Marcando..." else "MARCAR COMO LISTO",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-
 @Composable
-private fun KitchenItemsList(order: OrderResponseDto) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun ProductList(order: OrderResponseDto) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         order.detalles.orEmpty().forEach { detail ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color(0xFFF1EEE6)
+                    shape = RoundedCornerShape(8.dp),
+                    color = KitchenSoft
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .widthIn(min = 26.dp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = detail.cantidad.toString(),
                             color = KitchenPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .padding(start = 12.dp)
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = detail.productoNombre,
-                        color = KitchenPrimary,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
+                Text(
+                    text = detail.productoNombre,
+                    color = KitchenPrimary,
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TimePill(text: String) {
+private fun StatusTag(text: String) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = Color(0xFFE5E2DA)
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-            color = KitchenMuted,
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-}
-
-@Composable
-private fun KitchenPrimaryButton(
-    text: String,
-    color: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(999.dp),
-        color = color,
-        contentColor = Color.White
+        color = KitchenChip,
+        contentColor = KitchenPrimary
     ) {
         Box(
-            modifier = Modifier.padding(vertical = 15.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = text,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
 }
 
-private fun kitchenDestination(order: OrderResponseDto): String {
-    return when {
-        order.numeroMesa != null -> "MESA ${order.numeroMesa}"
-        order.tipo.equals("PARA_LLEVAR", true) || order.tipo.equals("LLEVAR", true) -> "PARA LLEVAR"
-        else -> "PEDIDO"
+private fun formatElapsed(elapsedMillis: Long): String {
+    val totalSeconds = (elapsedMillis / 1000L).coerceAtLeast(0L)
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
+    val seconds = totalSeconds % 60L
+
+    return if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
     }
-}
-
-private fun kitchenTimeLabel(order: OrderResponseDto): String {
-    return "hace ${minutesAgo(order.fecha)} min"
-}
-
-private fun minutesAgo(dateText: String?): Int {
-    if (dateText.isNullOrBlank()) return 0
-    return 2
 }
